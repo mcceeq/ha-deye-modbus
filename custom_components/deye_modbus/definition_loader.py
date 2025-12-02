@@ -63,7 +63,9 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
                 else:
                     regs_int.append(int(reg))
 
-            name = item.get("name") or item.get("id") or "Unknown"
+            name = (item.get("name") or item.get("id") or "").strip()
+            if not name:
+                continue
             key = _slug(name)
             scale = item.get("scale")
             lookup = _parse_lookup(item.get("lookup"))
