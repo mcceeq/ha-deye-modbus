@@ -1,9 +1,11 @@
 """Constants for the Deye Modbus integration."""
 
 from datetime import timedelta
+from homeassistant.const import Platform
+
 DOMAIN = "deye_modbus"
 # Dynamic platforms driven by external definitions
-PLATFORMS: list[str] = ["definition_sensor", "definition_number"]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER]
 
 CONF_CONNECTION_TYPE = "connection_type"
 CONNECTION_TYPE_RTU = "rtu"
