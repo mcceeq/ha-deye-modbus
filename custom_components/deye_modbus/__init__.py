@@ -21,6 +21,7 @@ from .const import (
     CONF_STOPBITS,
     CONF_SLAVE_ID,
     DEFAULT_SCAN_INTERVAL,
+    DEFINITION_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
 )
@@ -61,6 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         async def _async_update_definitions() -> dict[str, Any]:
             data: dict[str, Any] = {}
+            read_ts = time.monotonic()
             for item in def_items:
                 try:
                     rr = await client.async_read_holding_registers(item.registers[0], len(item.registers))
@@ -74,6 +76,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.debug("Definition read failed for %s: %s", item.name, err)
                     continue
+            last_ts = hass.data[DOMAIN][entry.entry_id]["definitions"].get("last_ts", 0)
+            if read_ts <= last_ts:
+                # Discard older/stale read
+                return hass.data[DOMAIN][entry.entry_id]["definitions"]["coordinator"].data
+            hass.data[DOMAIN][entry.entry_id]["definitions"]["last_ts"] = read_ts
             return data
 
         def_coordinator = DataUpdateCoordinator(
@@ -81,12 +88,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER,
             name="deye_modbus_definition",
             update_method=_async_update_definitions,
-            update_interval=DEFAULT_SCAN_INTERVAL,
+            update_interval=DEFINITION_SCAN_INTERVAL,
         )
         await def_coordinator.async_config_entry_first_refresh()
         hass.data[DOMAIN][entry.entry_id]["definitions"] = {
             "items": def_items,
             "coordinator": def_coordinator,
+            "last_ts": 0,
         }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
