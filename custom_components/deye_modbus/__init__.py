@@ -198,19 +198,25 @@ def _decode_item(item, regs: list[int]) -> Any:
 
     def _decode_year(raw: int) -> int | None:
         """Return a plausible four-digit year from raw or BCD encoded data."""
-        if 1970 <= raw <= 2100:
-            return raw
-        if 0 <= raw < 100:
-            # Some devices expose a two-digit year
-            candidate = 2000 + raw
-            return candidate if candidate <= 2100 else None
-        # Attempt BCD decode (e.g., 0x2024 -> 2024)
-        high = _bcd_byte_to_int((raw >> 8) & 0xFF)
-        low = _bcd_byte_to_int(raw & 0xFF)
-        if high is None or low is None:
-            return None
-        candidate = high * 100 + low
-        return candidate if 1970 <= candidate <= 2100 else None
+        def _try_year(val: int) -> int | None:
+            if 1970 <= val <= 2100:
+                return val
+            if 0 <= val < 100:
+                candidate = 2000 + val
+                return candidate if candidate <= 2100 else None
+            high = _bcd_byte_to_int((val >> 8) & 0xFF)
+            low = _bcd_byte_to_int(val & 0xFF)
+            if high is None or low is None:
+                return None
+            candidate = high * 100 + low
+            return candidate if 1970 <= candidate <= 2100 else None
+
+        # Try direct, then swapped-byte BCD
+        direct = _try_year(raw)
+        if direct is not None:
+            return direct
+        swapped = ((raw & 0xFF) << 8) | ((raw >> 8) & 0xFF)
+        return _try_year(swapped)
 
     def _decode_component(raw: int, upper: int, allow_zero: bool = False) -> int | None:
         """Decode a date/time component, handling both binary and BCD values."""
@@ -238,18 +244,41 @@ def _decode_item(item, regs: list[int]) -> Any:
         try:
             if item.platform == "datetime" and len(regs) >= 3:
                 year = _decode_year(regs[0])
+                # Default byte order: month in high byte, day in low
                 month = _decode_component((regs[1] >> 8) & 0xFF, 12)
                 day = _decode_component(regs[1] & 0xFF, 31)
                 hour = _decode_component((regs[2] >> 8) & 0xFF, 23, allow_zero=True)
                 minute = _decode_component(regs[2] & 0xFF, 59, allow_zero=True)
+                # Fallback if month/day are swapped on some firmwares
+                if None in (month, day):
+                    month_swapped = _decode_component(regs[1] & 0xFF, 12)
+                    day_swapped = _decode_component((regs[1] >> 8) & 0xFF, 31)
+                    if None not in (month_swapped, day_swapped):
+                        month, day = month_swapped, day_swapped
                 if None in (year, month, day, hour, minute):
+                    _LOGGER.debug(
+                        "Datetime decode failed for %s with raw registers %s",
+                        item.name,
+                        regs,
+                    )
                     return None
-                val = datetime.datetime(year, month, day, hour, minute)
+                val = datetime.datetime(year, month, day, hour or 0, minute or 0)
             elif item.platform == "time" and len(regs) >= 1:
                 hour = _decode_component((regs[0] >> 8) & 0xFF, 23, allow_zero=True)
                 minute = _decode_component(regs[0] & 0xFF, 59, allow_zero=True)
-                second = _decode_component(regs[1] & 0xFF, 59, allow_zero=True) if len(regs) > 1 else 0
+                second = (
+                    _decode_component(regs[1] & 0xFF, 59, allow_zero=True)
+                    if len(regs) > 1
+                    else 0
+                )
+                if None in (hour, minute):
+                    # Some firmwares may invert hour/minute bytes
+                    hour_swapped = _decode_component(regs[0] & 0xFF, 23, allow_zero=True)
+                    minute_swapped = _decode_component((regs[0] >> 8) & 0xFF, 59, allow_zero=True)
+                    if None not in (hour_swapped, minute_swapped):
+                        hour, minute = hour_swapped, minute_swapped
                 if None in (hour, minute, second):
+                    _LOGGER.debug("Time decode failed for %s with raw registers %s", item.name, regs)
                     return None
                 val = datetime.time(hour, minute, second)
             else:
