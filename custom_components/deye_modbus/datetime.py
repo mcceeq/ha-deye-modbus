@@ -74,6 +74,10 @@ class DeyeDefinitionDateTime(CoordinatorEntity, DateTimeEntity):
     def native_value(self) -> datetime | None:
         val = self.coordinator.data.get(self.entity_description.key)
         if isinstance(val, datetime):
+            if val.tzinfo is None:
+                # attach default HA timezone if missing
+                from homeassistant.util import dt as dt_util
+                return val.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
             return val
         return None
 

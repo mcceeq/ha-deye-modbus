@@ -154,7 +154,7 @@ def _decode_item(item, regs: list[int]) -> Any:
                 # sanity check years
                 if year < 1970 or year > 2100:
                     return None
-                val = datetime.datetime(year, month, day, hour, minute, tzinfo=dt_util.DEFAULT_TIME_ZONE)
+                val = datetime.datetime(year, month, day, hour, minute)
             elif item.platform == "time" and len(regs) >= 1:
                 hour = (regs[0] >> 8) & 0xFF
                 minute = regs[0] & 0xFF
@@ -196,5 +196,15 @@ def _decode_item(item, regs: list[int]) -> Any:
 
     if item.lookup and isinstance(val, int):
         val = item.lookup.get(val, val)
+
+    # Normalize datetime/time
+    if isinstance(val, datetime.datetime):
+        if val.year < 1970 or val.year > 2100:
+            return None
+        if val.tzinfo is None:
+            val = val.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+    if isinstance(val, datetime.time):
+        # leave naive times as-is
+        pass
 
     return val
