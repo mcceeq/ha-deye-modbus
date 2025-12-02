@@ -63,6 +63,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     definition_path = Path(__file__).parent / "definitions" / "deye_hybrid.yaml"
     if definition_path.exists():
         def_items = load_definition(definition_path)
+        spans = _build_spans(def_items)
 
         last_ts: float = 0
 
@@ -71,18 +72,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             data: dict[str, Any] = {}
             read_ts = _time.monotonic()
             prev = hass.data[DOMAIN][entry.entry_id]["definitions"]["coordinator"].data if "definitions" in hass.data[DOMAIN][entry.entry_id] else {}
-            for item in def_items:
+            # Read in batches
+            registers: dict[int, int] = {}
+            for start, count in spans:
                 try:
-                    rr = await client.async_read_holding_registers(item.registers[0], len(item.registers))
+                    rr = await client.async_read_holding_registers(start, count)
                     if rr.isError():
                         raise ConnectionError(rr)
-                    regs = rr.registers
+                    for idx, reg_val in enumerate(rr.registers):
+                        registers[start + idx] = reg_val
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("Definition batch read failed (%s, %s): %s", start, count, err)
+                    continue
+
+            # Decode items using cached register values
+            for item in def_items:
+                try:
+                    regs = []
+                    missing = False
+                    for addr in item.registers:
+                        if addr in registers:
+                            regs.append(registers[addr])
+                        else:
+                            missing = True
+                            break
+                    if missing:
+                        continue
                     val = _decode_item(item, regs)
                     if val is None:
                         continue
                     data[item.key] = val
                 except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("Definition read failed for %s: %s", item.name, err)
+                    _LOGGER.debug("Definition decode failed for %s: %s", item.name, err)
                     continue
             if read_ts <= last_ts:
                 existing = hass.data[DOMAIN][entry.entry_id].get("definitions", {}).get("coordinator")
@@ -126,6 +147,28 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle an options update."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _build_spans(items) -> list[tuple[int, int]]:
+    """Build batched read spans from definition items."""
+    spans: list[tuple[int, int]] = []
+    ranges: list[tuple[int, int]] = []
+    for item in items:
+        start = min(item.registers)
+        end = max(item.registers) + 1
+        ranges.append((start, end))
+    ranges.sort(key=lambda r: r[0])
+    if not ranges:
+        return spans
+    cur_start, cur_end = ranges[0]
+    for start, end in ranges[1:]:
+        if start <= cur_end:
+            cur_end = max(cur_end, end)
+        else:
+            spans.append((cur_start, cur_end - cur_start))
+            cur_start, cur_end = start, end
+    spans.append((cur_start, cur_end - cur_start))
+    return spans
 
 
 def _decode_item(item, regs: list[int]) -> Any:
