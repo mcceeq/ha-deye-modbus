@@ -3,7 +3,25 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to inverter",
+        "title": "Choose connection type",
+        "description": "Select how Home Assistant should connect to the inverter.",
+        "data": {
+          "connection_type": "Connection type (RTU serial or TCP)"
+        }
+      },
+      "rtu": {
+        "title": "Connect to inverter (serial)",
+        "description": "Enter the Modbus RTU over serial connection details.",
+        "data": {
+          "device": "Serial device (e.g. /dev/ttyUSB0)",
+          "baudrate": "Baudrate",
+          "parity": "Parity (N/E/O)",
+          "stopbits": "Stop bits",
+          "slave_id": "Slave ID"
+        }
+      },
+      "tcp": {
+        "title": "Connect to inverter (TCP)",
         "description": "Enter the Modbus TCP connection details.",
         "data": {
           "host": "Host",

@@ -14,8 +14,13 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import (
+    CONF_BAUDRATE,
+    CONF_CONNECTION_TYPE,
+    CONF_DEVICE,
     CONF_HOST,
+    CONF_PARITY,
     CONF_PORT,
+    CONF_STOPBITS,
     CONF_SLAVE_ID,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -31,8 +36,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     client = DeyeModbusClient(
-        host=entry.data[CONF_HOST],
-        port=entry.data[CONF_PORT],
+        connection_type=entry.data[CONF_CONNECTION_TYPE],
+        device=entry.data.get(CONF_DEVICE),
+        baudrate=entry.data.get(CONF_BAUDRATE),
+        parity=entry.data.get(CONF_PARITY),
+        stopbits=entry.data.get(CONF_STOPBITS),
+        host=entry.data.get(CONF_HOST),
+        port=entry.data.get(CONF_PORT),
         slave_id=entry.data[CONF_SLAVE_ID],
     )
 
