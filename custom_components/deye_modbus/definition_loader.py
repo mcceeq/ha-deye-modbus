@@ -27,6 +27,7 @@ class DefinitionItem:
     range_max: float | None = None
     mask: int | None = None
     divide: float | None = None
+    group_name: str | None = None
 
 
 def load_definition(def_path: Path) -> list[DefinitionItem]:
@@ -89,6 +90,7 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
                     range_max=range_max,
                     mask=int(mask, 0) if isinstance(mask, str) else mask,
                     divide=divide,
+                    group_name=group_name,
                 )
             )
 

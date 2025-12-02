@@ -26,12 +26,7 @@ async def async_setup_entry(
     coordinator = defs["coordinator"]
     items: list[DefinitionItem] = defs["items"]
 
-    base_device_info = {
-        "identifiers": {(DOMAIN, entry.entry_id)},
-        "manufacturer": "Deye",
-        "name": _build_base_name(entry.data),
-        "configuration_url": _build_config_url(entry.data),
-    }
+    base_device_info = _base_device(entry.entry_id, entry.data)
 
     entities: list[DeyeDefinitionSelect] = []
     for item in items:
@@ -45,7 +40,7 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 description=desc,
                 entry_id=entry.entry_id,
-                device_info=base_device_info,
+                device_info=_device_for_group(item, entry.entry_id, base_device_info),
             )
         )
 
@@ -105,3 +100,25 @@ def _build_config_url(entry_data: dict) -> str | None:
     if host := entry_data.get(CONF_HOST):
         return f"http://{host}"
     return None
+
+
+def _base_device(entry_id: str, entry_data: dict) -> dict:
+    return {
+        "identifiers": {(DOMAIN, entry_id)},
+        "manufacturer": "Deye",
+        "name": _build_base_name(entry_data),
+        "configuration_url": _build_config_url(entry_data),
+    }
+
+
+def _device_for_group(item: DefinitionItem, entry_id: str, base: dict) -> dict:
+    group = (item.group_name or "").strip()
+    if not group:
+        return base
+    return {
+        "identifiers": {(DOMAIN, f"{entry_id}_{group}")},
+        "manufacturer": base.get("manufacturer"),
+        "name": f"{base.get('name')} - {group}",
+        "via_device": (DOMAIN, entry_id),
+        "configuration_url": base.get("configuration_url"),
+    }
