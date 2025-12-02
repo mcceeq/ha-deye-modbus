@@ -8,6 +8,19 @@ from typing import Any
 
 import yaml
 
+# Local overrides for definition quirks without touching the YAML file
+_ITEM_OVERRIDES: dict[str, dict[str, Any]] = {
+    # Solarman exposes Meter (0x0146) as a select with three modes
+    "meter": {
+        "platform": "select",
+        "lookup": [
+            {"key": 0x0000, "value": "Disabled"},
+            {"key": 0x0001, "value": "Enabled"},
+            {"key": 0x0002, "value": "Generator"},
+        ],
+    },
+}
+
 
 @dataclass
 class DefinitionItem:
@@ -67,6 +80,15 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
             if not name:
                 continue
             key = _slug(name)
+
+            # Apply any hardcoded overrides (platform/lookup/etc.)
+            if key in _ITEM_OVERRIDES:
+                override = _ITEM_OVERRIDES[key]
+                if "platform" in override:
+                    platform = override["platform"]
+                if "lookup" in override:
+                    item["lookup"] = override["lookup"]
+
             scale = item.get("scale")
             lookup = _parse_lookup(item.get("lookup"))
             range_min = None
