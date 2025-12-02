@@ -229,6 +229,50 @@ def _decode_item(item, regs: list[int]) -> Any:
             return decoded if 0 <= decoded <= upper else None
         return decoded if 1 <= decoded <= upper else None
 
+    def _decode_month_day(raw: int) -> tuple[int | None, int | None]:
+        """Try both byte orders for month/day."""
+        candidates = [
+            ((raw >> 8) & 0xFF, raw & 0xFF),
+            (raw & 0xFF, (raw >> 8) & 0xFF),
+        ]
+        for month_raw, day_raw in candidates:
+            month = _decode_component(month_raw, 12)
+            day = _decode_component(day_raw, 31)
+            if None not in (month, day):
+                return month, day
+        return None, None
+
+    def _decode_hour_min(raw: int) -> tuple[int | None, int | None]:
+        """Try both byte orders for hour/minute."""
+        candidates = [
+            ((raw >> 8) & 0xFF, raw & 0xFF),
+            (raw & 0xFF, (raw >> 8) & 0xFF),
+        ]
+        for hour_raw, minute_raw in candidates:
+            hour = _decode_component(hour_raw, 23, allow_zero=True)
+            minute = _decode_component(minute_raw, 59, allow_zero=True)
+            if None not in (hour, minute):
+                return hour, minute
+        return None, None
+
+    def _decode_datetime_from_regs(regs_in: list[int]) -> datetime.datetime | None:
+        """Try multiple byte orders and register permutations for datetime."""
+        if len(regs_in) < 3:
+            return None
+        # Prefer definition order first, then permutations for resilience
+        idx_orders = [(0, 1, 2), (1, 0, 2), (2, 0, 1), (0, 2, 1), (1, 2, 0), (2, 1, 0)]
+        for y_idx, md_idx, hm_idx in idx_orders:
+            year = _decode_year(regs_in[y_idx])
+            month, day = _decode_month_day(regs_in[md_idx])
+            hour, minute = _decode_hour_min(regs_in[hm_idx])
+            if None in (year, month, day, hour, minute):
+                continue
+            try:
+                return datetime.datetime(year, month, day, hour or 0, minute or 0)
+            except Exception:  # noqa: BLE001
+                continue
+        return None
+
     if rule in (None, 1):
         val = regs[0]
     elif rule == 4 and len(regs) >= 2:
@@ -243,26 +287,14 @@ def _decode_item(item, regs: list[int]) -> Any:
     elif rule == 8:
         try:
             if item.platform == "datetime" and len(regs) >= 3:
-                year = _decode_year(regs[0])
-                # Default byte order: month in high byte, day in low
-                month = _decode_component((regs[1] >> 8) & 0xFF, 12)
-                day = _decode_component(regs[1] & 0xFF, 31)
-                hour = _decode_component((regs[2] >> 8) & 0xFF, 23, allow_zero=True)
-                minute = _decode_component(regs[2] & 0xFF, 59, allow_zero=True)
-                # Fallback if month/day are swapped on some firmwares
-                if None in (month, day):
-                    month_swapped = _decode_component(regs[1] & 0xFF, 12)
-                    day_swapped = _decode_component((regs[1] >> 8) & 0xFF, 31)
-                    if None not in (month_swapped, day_swapped):
-                        month, day = month_swapped, day_swapped
-                if None in (year, month, day, hour, minute):
+                val = _decode_datetime_from_regs(regs[:3])
+                if not val:
                     _LOGGER.debug(
                         "Datetime decode failed for %s with raw registers %s",
                         item.name,
-                        regs,
+                        regs[:3],
                     )
                     return None
-                val = datetime.datetime(year, month, day, hour or 0, minute or 0)
             elif item.platform == "time" and len(regs) >= 1:
                 hour = _decode_component((regs[0] >> 8) & 0xFF, 23, allow_zero=True)
                 minute = _decode_component(regs[0] & 0xFF, 59, allow_zero=True)
