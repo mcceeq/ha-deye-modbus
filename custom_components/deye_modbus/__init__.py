@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-import time
 import datetime
+from time import monotonic
 from pathlib import Path
 from typing import Any
 
@@ -67,7 +67,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async def _async_update_definitions() -> dict[str, Any]:
             nonlocal last_ts
             data: dict[str, Any] = {}
-            read_ts = time.monotonic()
+            read_ts = monotonic()
             for item in def_items:
                 try:
                     rr = await client.async_read_holding_registers(item.registers[0], len(item.registers))
