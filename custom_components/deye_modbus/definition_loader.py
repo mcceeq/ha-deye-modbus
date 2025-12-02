@@ -100,6 +100,8 @@ def _parse_lookup(lookup_list: Any) -> dict[int, Any] | None:
             continue
         if isinstance(key, list):
             for k in key:
+                if k is None:
+                    continue
                 mapping[int(k)] = val
         else:
             mapping[int(key)] = val
