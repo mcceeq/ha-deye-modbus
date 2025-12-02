@@ -6,7 +6,6 @@ import logging
 from typing import Any
 
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
-from pymodbus.payload import BinaryPayloadDecoder, Endian
 
 from .const import CONNECTION_TYPE_RTU, CONNECTION_TYPE_TCP
 
