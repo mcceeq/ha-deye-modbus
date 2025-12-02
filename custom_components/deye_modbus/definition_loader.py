@@ -1,4 +1,4 @@
-"""Loader for Solarman-style YAML definitions (read-only subset)."""
+"""Loader for external YAML definitions (read-only subset)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import yaml
 
 @dataclass
 class DefinitionItem:
-    """Flattened item from the Solarman definition."""
+    """Flattened item from the definition."""
 
     key: str
     name: str
@@ -30,7 +30,7 @@ class DefinitionItem:
 
 
 def load_definition(def_path: Path) -> list[DefinitionItem]:
-    """Load a Solarman definition file and return supported items."""
+    """Load a definition file and return supported items."""
     data = yaml.safe_load(def_path.read_text())
     items: list[DefinitionItem] = []
 
@@ -107,7 +107,7 @@ def _slug(name: str) -> str:
 
 
 def _parse_lookup(lookup_list: Any) -> dict[int, Any] | None:
-    """Convert Solarman lookup list to dict."""
+    """Convert lookup list to dict."""
     if not lookup_list:
         return None
     mapping: dict[int, Any] = {}

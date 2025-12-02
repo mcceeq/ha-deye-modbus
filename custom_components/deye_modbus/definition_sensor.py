@@ -1,20 +1,28 @@
-"""Number entities driven by Solarman definitions (read-only)."""
+"""Dynamic sensors driven by definitions (read-only)."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.number import (
-    NumberEntity,
-    NumberEntityDescription,
-    NumberMode,
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfElectricCurrent, UnitOfPower, UnitOfEnergy
+from homeassistant.const import (
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfTemperature,
+    UnitOfFrequency,
+)
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN, CONF_HOST, CONF_PORT, CONF_DEVICE
 from .definition_loader import DefinitionItem
@@ -23,8 +31,8 @@ from .definition_loader import DefinitionItem
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up Solarman-driven numbers if available."""
-    sol = hass.data[DOMAIN][entry.entry_id].get("solarman")
+    """Set up definition-driven sensors if available."""
+    sol = hass.data[DOMAIN][entry.entry_id].get("definitions")
     if not sol:
         return
 
@@ -38,10 +46,10 @@ async def async_setup_entry(
         "configuration_url": _build_config_url(entry.data),
     }
 
-    entities: list[DeyeSolarmanNumber] = []
+    entities: list[CoordinatorEntity] = []
 
     for item in items:
-        if item.platform != "number":
+        if item.platform != "sensor":
             continue
 
         desc = _description_for(item)
@@ -49,7 +57,7 @@ async def async_setup_entry(
             continue
 
         entities.append(
-            DeyeSolarmanNumber(
+            DeyeDefinitionSensor(
                 coordinator=coordinator,
                 description=desc,
                 entry_id=entry.entry_id,
@@ -61,31 +69,26 @@ async def async_setup_entry(
         async_add_entities(entities)
 
 
-class DeyeSolarmanNumber(CoordinatorEntity, NumberEntity):
-    """Number entity driven by Solarman definition (read-only)."""
+class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
+    """Sensor entity driven by external definition."""
 
     _attr_has_entity_name = True
-    _attr_mode = NumberMode.BOX
-    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
         coordinator,
-        description: NumberEntityDescription,
+        description: SensorEntityDescription,
         entry_id: str,
         device_info: dict[str, Any],
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{entry_id}_solarman_{description.key}"
+        self._attr_unique_id = f"{entry_id}_def_{description.key}"
         self._attr_device_info = device_info
 
     @property
     def native_value(self):
         return self.coordinator.data.get(self.entity_description.key)
-
-    async def async_set_native_value(self, value):
-        raise NotImplementedError("Write not implemented for Solarman numbers")
 
 
 def _build_base_name(entry_data: dict, suffix: str = "") -> str:
@@ -105,22 +108,43 @@ def _build_config_url(entry_data: dict) -> str | None:
     return None
 
 
-def _description_for(item: DefinitionItem) -> NumberEntityDescription | None:
-    """Map definition item to a number description (read-only)."""
+def _description_for(item: DefinitionItem) -> SensorEntityDescription | None:
+    """Map definition item to a sensor description (read-only)."""
+    unit = item.unit
+    dev_class = None
+    state_class = None
     native_unit = None
-    if item.unit in ("A", "a"):
-        native_unit = UnitOfElectricCurrent.AMPERE
-    elif item.unit in ("W", "w"):
-        native_unit = UnitOfPower.WATT
-    elif item.unit in ("kWh", "kwh"):
-        native_unit = UnitOfEnergy.KILO_WATT_HOUR
 
-    return NumberEntityDescription(
+    if unit in ("W", "w"):
+        native_unit = UnitOfPower.WATT
+        dev_class = SensorDeviceClass.POWER
+        state_class = SensorStateClass.MEASUREMENT
+    elif unit in ("V", "v"):
+        native_unit = UnitOfElectricPotential.VOLT
+        dev_class = SensorDeviceClass.VOLTAGE
+        state_class = SensorStateClass.MEASUREMENT
+    elif unit in ("A", "a"):
+        native_unit = UnitOfElectricCurrent.AMPERE
+        dev_class = SensorDeviceClass.CURRENT
+        state_class = SensorStateClass.MEASUREMENT
+    elif unit in ("Hz", "hz"):
+        native_unit = UnitOfFrequency.HERTZ
+        dev_class = SensorDeviceClass.FREQUENCY
+        state_class = SensorStateClass.MEASUREMENT
+    elif unit in ("kWh", "kwh"):
+        native_unit = UnitOfEnergy.KILO_WATT_HOUR
+        dev_class = SensorDeviceClass.ENERGY
+        state_class = SensorStateClass.TOTAL_INCREASING
+    elif unit in ("C", "°C", "c"):
+        native_unit = UnitOfTemperature.CELSIUS
+        dev_class = SensorDeviceClass.TEMPERATURE
+        state_class = SensorStateClass.MEASUREMENT
+
+    return SensorEntityDescription(
         key=item.key,
         name=item.name,
         native_unit_of_measurement=native_unit,
-        native_min_value=item.range_min if hasattr(item, "range_min") else None,
-        native_max_value=item.range_max if hasattr(item, "range_max") else None,
-        native_step=1,
+        device_class=dev_class,
+        state_class=state_class,
         icon=item.icon,
     )

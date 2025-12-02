@@ -2,8 +2,8 @@
 
 from datetime import timedelta
 DOMAIN = "deye_modbus"
-# Dynamic platforms driven by Solarman definitions
-PLATFORMS: list[str] = ["solarman_sensor", "solarman_number"]
+# Dynamic platforms driven by external definitions
+PLATFORMS: list[str] = ["definition_sensor", "definition_number"]
 
 CONF_CONNECTION_TYPE = "connection_type"
 CONNECTION_TYPE_RTU = "rtu"

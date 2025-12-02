@@ -54,14 +54,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "client": client,
     }
 
-    # Solarman-driven coordinator (read-only)
+    # Definition-driven coordinator (read-only)
     definition_path = Path(__file__).parent / "definitions" / "deye_hybrid.yaml"
     if definition_path.exists():
-        solarman_items = load_definition(definition_path)
+        def_items = load_definition(definition_path)
 
-        async def _async_update_solarman() -> dict[str, Any]:
+        async def _async_update_definitions() -> dict[str, Any]:
             data: dict[str, Any] = {}
-            for item in solarman_items:
+            for item in def_items:
                 try:
                     rr = await client.async_read_holding_registers(item.registers[0], len(item.registers))
                     if rr.isError():
@@ -72,21 +72,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         continue
                     data[item.key] = val
                 except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("Solarman read failed for %s: %s", item.name, err)
+                    _LOGGER.debug("Definition read failed for %s: %s", item.name, err)
                     continue
             return data
 
-        solarman_coordinator = DataUpdateCoordinator(
+        def_coordinator = DataUpdateCoordinator(
             hass,
             _LOGGER,
-            name="deye_modbus_solarman",
-            update_method=_async_update_solarman,
+            name="deye_modbus_definition",
+            update_method=_async_update_definitions,
             update_interval=DEFAULT_SCAN_INTERVAL,
         )
-        await solarman_coordinator.async_config_entry_first_refresh()
-        hass.data[DOMAIN][entry.entry_id]["solarman"] = {
-            "items": solarman_items,
-            "coordinator": solarman_coordinator,
+        await def_coordinator.async_config_entry_first_refresh()
+        hass.data[DOMAIN][entry.entry_id]["definitions"] = {
+            "items": def_items,
+            "coordinator": def_coordinator,
         }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

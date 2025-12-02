@@ -11,7 +11,7 @@ info:
   model: SG0*LP1
 
 default:
-  update_interval: 1
+  update_interval: 5
   digits: 6
 
 parameters:
