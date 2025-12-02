@@ -1,0 +1,18 @@
+{
+  "title": "Deye Local Modbus",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to inverter",
+        "description": "Enter the Modbus TCP connection details.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "slave_id": "Slave ID"
+        }
+      }
+    },
+    "error": {},
+    "abort": {}
+  }
+}
