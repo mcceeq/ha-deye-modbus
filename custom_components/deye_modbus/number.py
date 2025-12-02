@@ -19,6 +19,27 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, CONF_HOST, CONF_PORT, CONF_DEVICE
 from .definition_loader import DefinitionItem
 
+# Keys whose availability depends on battery control mode
+_LITHIUM_HIDE_KEYS = {
+    # Voltage-tuned lead-acid settings that should not apply to lithium
+    "battery_equalization",
+    "battery_absorption",
+    "battery_float",
+    "battery_empty",
+    "battery_shutdown_voltage",
+    "battery_restart_voltage",
+    "battery_low_voltage",
+    "battery_generator_charging_start_voltage",
+    "battery_grid_charging_start_voltage",
+}
+
+_SOC_HIDE_KEYS = {
+    # SOC thresholds not relevant for lead-acid control
+    "battery_shutdown_soc",
+    "battery_restart_soc",
+    "battery_low_soc",
+}
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -77,6 +98,20 @@ class DeyeDefinitionNumber(CoordinatorEntity, NumberEntity):
     @property
     def native_value(self):
         return self.coordinator.data.get(self.entity_description.key)
+
+    @property
+    def available(self) -> bool:
+        """Hide voltage controls when mode is lithium; hide SOC controls when not."""
+        if not super().available:
+            return False
+        data = self.coordinator.data
+        mode = data.get("battery_control_mode")
+        key = self.entity_description.key
+        if mode == "Lithium" and key in _LITHIUM_HIDE_KEYS:
+            return False
+        if mode and mode != "Lithium" and key in _SOC_HIDE_KEYS:
+            return False
+        return True
 
     async def async_set_native_value(self, value):
         raise NotImplementedError("Write not implemented for numbers")
