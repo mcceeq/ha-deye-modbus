@@ -99,7 +99,7 @@ def _build_base_name(entry_data: dict, suffix: str = "") -> str:
         base = f"Deye Inverter ({device})"
     else:
         base = "Deye Inverter"
-    return f"{base} {suffix}".strip()
+    return base
 
 
 def _build_config_url(entry_data: dict) -> str | None:
