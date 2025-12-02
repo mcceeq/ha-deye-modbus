@@ -21,8 +21,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import EntityCategory
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_HOST,
+    CONF_PORT,
+    CONF_DEVICE,
+)
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
@@ -101,6 +108,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="external_current_l1",
@@ -164,6 +172,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="grid_voltage_l2",
@@ -171,6 +180,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="grid_voltage_ll",
@@ -178,6 +188,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="output_voltage_l1",
@@ -220,6 +231,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="frequency_output",
@@ -227,6 +239,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="frequency_load",
@@ -234,6 +247,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_voltage",
@@ -241,6 +255,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_current",
@@ -248,6 +263,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_temp",
@@ -255,6 +271,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_soc",
@@ -262,18 +279,22 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_status",
         name="Battery Status",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="relay_status",
         name="Grid Relay Status",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="inverter_status",
         name="Inverter Status",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="internal_temp_1",
@@ -323,6 +344,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="pv2_power",
@@ -330,6 +352,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="grid_import_export_power",
@@ -337,6 +360,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="frequency_grid",
@@ -351,6 +375,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="inverter_total_energy",
@@ -358,6 +383,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_daily_charge_energy",
@@ -365,6 +391,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_daily_discharge_energy",
@@ -372,6 +399,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_total_charge_energy",
@@ -379,6 +407,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="battery_total_discharge_energy",
@@ -386,6 +415,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="bms_max_charge_current",
@@ -393,6 +423,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="bms_max_discharge_current",
@@ -400,6 +431,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="bms_abs_max_charge_current",
@@ -407,6 +439,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="bms_abs_max_discharge_current",
@@ -414,40 +447,64 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key="battery_max_charge_current_set",
+        name="Battery Max Charge Current (Set)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
+    ),
+    SensorEntityDescription(
+        key="battery_max_discharge_current_set",
+        name="Battery Max Discharge Current (Set)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_mode_enable",
         name="ToU Mode Enabled",
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot1_minutes",
         name="ToU Slot1 Start",
         native_unit_of_measurement="min",
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot2_minutes",
         name="ToU Slot2 Start",
         native_unit_of_measurement="min",
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot3_minutes",
         name="ToU Slot3 Start",
         native_unit_of_measurement="min",
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot4_minutes",
         name="ToU Slot4 Start",
         native_unit_of_measurement="min",
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot5_minutes",
         name="ToU Slot5 Start",
         native_unit_of_measurement="min",
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot6_minutes",
         name="ToU Slot6 Start",
         native_unit_of_measurement="min",
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot1_power_limit",
@@ -455,6 +512,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot2_power_limit",
@@ -462,6 +520,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot3_power_limit",
@@ -469,6 +528,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot4_power_limit",
@@ -476,6 +536,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot5_power_limit",
@@ -483,6 +544,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="tou_slot6_power_limit",
@@ -490,6 +552,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.CONFIG,
     ),
     SensorEntityDescription(
         key="energy_bought_day",
@@ -497,6 +560,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="energy_load_day",
@@ -504,6 +568,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="energy_load_total",
@@ -511,6 +576,7 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 
@@ -521,11 +587,20 @@ async def async_setup_entry(
     """Set up Deye sensors from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
+    base_name = _build_base_name(entry.data)
+    base_device_info = DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        manufacturer="Deye",
+        name=base_name,
+        configuration_url=_build_config_url(entry.data),
+    )
+
     entities = [
         DeyeSensor(
             coordinator=coordinator,
             description=description,
             entry_id=entry.entry_id,
+            base_device_info=base_device_info,
         )
         for description in SENSOR_DESCRIPTIONS
     ]
@@ -541,13 +616,80 @@ class DeyeSensor(CoordinatorEntity, SensorEntity):
         coordinator,
         description: SensorEntityDescription,
         entry_id: str,
+        base_device_info: DeviceInfo,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry_id}_{description.key}"
+        self._attr_device_info = _device_info_for(description.key, entry_id, base_device_info)
 
     @property
     def native_value(self):
         """Return the state reported by the coordinator."""
         return self.coordinator.data.get(self.entity_description.key)
+
+
+def _build_base_name(entry_data: dict) -> str:
+    """Build a base device name from connection details."""
+    if host := entry_data.get(CONF_HOST):
+        port = entry_data.get(CONF_PORT)
+        return f"Deye Inverter ({host}:{port})" if port else f"Deye Inverter ({host})"
+    if device := entry_data.get(CONF_DEVICE):
+        return f"Deye Inverter ({device})"
+    return "Deye Inverter"
+
+
+def _build_config_url(entry_data: dict) -> str | None:
+    """If a host is provided, offer an http config URL (best effort)."""
+    if host := entry_data.get(CONF_HOST):
+        return f"http://{host}"
+    return None
+
+
+def _device_info_for(key: str, entry_id: str, base: DeviceInfo) -> DeviceInfo:
+    """Choose device grouping based on sensor key."""
+    group = _group_for_key(key)
+    if group == "inverter":
+        return base
+
+    label = GROUP_LABELS.get(group, group.title())
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{entry_id}_{group}")},
+        manufacturer=base.manufacturer,
+        name=f"{base.name} - {label}",
+        via_device=(DOMAIN, entry_id),
+    )
+
+
+GROUP_LABELS: dict[str, str] = {
+    "pv": "PV",
+    "grid": "Grid",
+    "load": "Load",
+    "output": "Output",
+    "battery": "Battery",
+    "bms": "BMS",
+    "limits": "Limits",
+    "tou": "Time of Use",
+    "energy": "Energy",
+}
+
+
+def _group_for_key(key: str) -> str:
+    """Map sensor key prefixes to device groups."""
+    for prefix, group in (
+        ("pv", "pv"),
+        ("grid", "grid"),
+        ("load", "load"),
+        ("output", "output"),
+        ("battery_max_", "limits"),
+        ("battery", "battery"),
+        ("bms", "bms"),
+        ("tou_slot", "tou"),
+        ("tou_mode", "tou"),
+        ("tou", "tou"),
+        ("energy", "energy"),
+    ):
+        if key.startswith(prefix):
+            return group
+    return "inverter"

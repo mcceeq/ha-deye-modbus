@@ -253,6 +253,15 @@ class DeyeModbusClient:
         else:
             raise ConnectionError(f"Modbus read failed (190-194): {rr}")
 
+        # Block 6b: inverter-side current limits (208-209)
+        rr = await _read_holding(208, 2)
+        if not rr.isError():
+            b6b = rr.registers
+            data["battery_max_charge_current_set"] = _u16(b6b, 0, 1)  # 208
+            data["battery_max_discharge_current_set"] = _u16(b6b, 1, 1)  # 209
+        else:
+            raise ConnectionError(f"Modbus read failed (208-209): {rr}")
+
         # Block 7: BMS limits 212-219
         rr = await _read_holding(212, 8)
         if not rr.isError():
