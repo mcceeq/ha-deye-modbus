@@ -34,6 +34,13 @@ from .definition_loader import load_definition
 
 _LOGGER = logging.getLogger(__name__)
 
+# Some registers use implicit scaling not captured in the definitions.
+_SCALE_OVERRIDES: dict[str, float] = {
+    # Register 0x00D4/0x00D5 report integer amps; exposed in HA should be *100
+    "battery_bms_charge_current_limit": 100,
+    "battery_bms_discharge_current_limit": 100,
+}
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Deye Local from a config entry."""
@@ -273,9 +280,10 @@ def _decode_item(item, regs: list[int]) -> Any:
             val = val / item.divide  # type: ignore[operator]
         except Exception:  # noqa: BLE001
             pass
-    if item.scale:
+    scale = _SCALE_OVERRIDES.get(getattr(item, "key", None), item.scale)
+    if scale:
         try:
-            val = val * item.scale  # type: ignore[operator]
+            val = val * scale  # type: ignore[operator]
         except Exception:  # noqa: BLE001
             pass
 
