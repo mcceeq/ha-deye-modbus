@@ -178,10 +178,13 @@ def _description_for(item: DefinitionItem) -> SensorEntityDescription | None:
         dev_class = SensorDeviceClass.TEMPERATURE
         state_class = SensorStateClass.MEASUREMENT
 
+    # Fall back to the raw unit from definitions when we don't have a native mapping
+    fallback_unit = native_unit or unit
+
     return SensorEntityDescription(
         key=item.key,
         name=item.name,
-        native_unit_of_measurement=native_unit,
+        native_unit_of_measurement=fallback_unit,
         device_class=dev_class,
         state_class=state_class,
         icon=item.icon,

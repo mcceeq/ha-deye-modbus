@@ -131,10 +131,12 @@ def _description_for(item: DefinitionItem) -> NumberEntityDescription | None:
     elif item.unit in ("kWh", "kwh"):
         native_unit = UnitOfEnergy.KILO_WATT_HOUR
 
+    fallback_unit = native_unit or item.unit
+
     return NumberEntityDescription(
         key=item.key,
         name=item.name,
-        native_unit_of_measurement=native_unit,
+        native_unit_of_measurement=fallback_unit,
         native_min_value=item.range_min if hasattr(item, "range_min") else None,
         native_max_value=item.range_max if hasattr(item, "range_max") else None,
         native_step=1,
