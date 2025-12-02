@@ -3,7 +3,7 @@
 from datetime import timedelta
 from homeassistant.const import Platform
 
-DOMAIN = "deye_local"
+DOMAIN = "deye_modbus"
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 CONF_HOST = "host"
