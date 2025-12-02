@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import inspect
 from typing import Any
 
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
@@ -69,6 +70,10 @@ class DeyeModbusClient:
         if not connected:
             raise ConnectionError("Failed to open Modbus connection")
 
+        # Set default unit/slave if supported by client implementation
+        if hasattr(self._client, "unit_id"):
+            self._client.unit_id = self._slave_id
+
     async def async_close(self) -> None:
         """Close any open connections."""
         if self._client:
@@ -85,17 +90,20 @@ class DeyeModbusClient:
             raise ConnectionError("Modbus client not initialized")
 
         async def _read_holding(address: int, count: int):
-            """Read holding registers with broad compatibility across pymodbus versions."""
+            """Read holding registers, adapting to different pymodbus signatures."""
+            sig = inspect.signature(self._client.read_holding_registers)
+            params = sig.parameters
+            kwargs: dict[str, Any] = {}
+            if "unit" in params:
+                kwargs["unit"] = self._slave_id
+            elif "slave" in params:
+                kwargs["slave"] = self._slave_id
+
             try:
+                return await self._client.read_holding_registers(address, count, **kwargs)
+            except TypeError as err:
+                # Last resort: call without any slave/unit kwarg
                 return await self._client.read_holding_registers(address, count)
-            except TypeError as err1:
-                try:
-                    return await self._client.read_holding_registers(address, count, unit=self._slave_id)
-                except TypeError as err2:
-                    try:
-                        return await self._client.read_holding_registers(address, count, slave=self._slave_id)
-                    except TypeError as err3:
-                        raise err1 from err3
 
         def _signed_16(regs: list[int], idx: int, scale: float | None = None) -> float | int | None:
             if idx >= len(regs):
