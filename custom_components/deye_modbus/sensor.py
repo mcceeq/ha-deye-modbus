@@ -654,10 +654,12 @@ def _device_info_for(key: str, entry_id: str, base: DeviceInfo) -> DeviceInfo:
         return base
 
     label = GROUP_LABELS.get(group, group.title())
+    base_name = base.get("name") if isinstance(base, dict) else None
+    manufacturer = base.get("manufacturer") if isinstance(base, dict) else None
     return DeviceInfo(
         identifiers={(DOMAIN, f"{entry_id}_{group}")},
-        manufacturer=base.manufacturer,
-        name=f"{base.name} - {label}",
+        manufacturer=manufacturer,
+        name=f"{base_name} - {label}" if base_name else label,
         via_device=(DOMAIN, entry_id),
     )
 
