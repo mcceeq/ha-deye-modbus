@@ -588,12 +588,12 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     base_name = _build_base_name(entry.data)
-    base_device_info = DeviceInfo(
-        identifiers={(DOMAIN, entry.entry_id)},
-        manufacturer="Deye",
-        name=base_name,
-        configuration_url=_build_config_url(entry.data),
-    )
+    base_device_info = {
+        "identifiers": {(DOMAIN, entry.entry_id)},
+        "manufacturer": "Deye",
+        "name": base_name,
+        "configuration_url": _build_config_url(entry.data),
+    }
 
     entities = [
         DeyeSensor(
@@ -616,7 +616,7 @@ class DeyeSensor(CoordinatorEntity, SensorEntity):
         coordinator,
         description: SensorEntityDescription,
         entry_id: str,
-        base_device_info: DeviceInfo,
+        base_device_info: dict,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
@@ -647,15 +647,15 @@ def _build_config_url(entry_data: dict) -> str | None:
     return None
 
 
-def _device_info_for(key: str, entry_id: str, base: DeviceInfo) -> DeviceInfo:
+def _device_info_for(key: str, entry_id: str, base: dict) -> DeviceInfo:
     """Choose device grouping based on sensor key."""
     group = _group_for_key(key)
     if group == "inverter":
-        return base
+        return DeviceInfo(**base)
 
     label = GROUP_LABELS.get(group, group.title())
-    base_name = base.get("name") if isinstance(base, dict) else None
-    manufacturer = base.get("manufacturer") if isinstance(base, dict) else None
+    base_name = base.get("name")
+    manufacturer = base.get("manufacturer")
     return DeviceInfo(
         identifiers={(DOMAIN, f"{entry_id}_{group}")},
         manufacturer=manufacturer,
