@@ -1,4 +1,4 @@
-"""Constants for the Deye Local integration."""
+"""Constants for the Deye Modbus integration."""
 
 from datetime import timedelta
 from homeassistant.const import Platform

@@ -61,6 +61,7 @@ async def async_setup_entry(
         DeyeSensor(
             coordinator=coordinator,
             description=description,
+            entry_id=entry.entry_id,
         )
         for description in SENSOR_DESCRIPTIONS
     ]
@@ -75,11 +76,12 @@ class DeyeSensor(CoordinatorEntity, SensorEntity):
         self,
         coordinator,
         description: SensorEntityDescription,
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{coordinator.name}_{description.key}"
+        self._attr_unique_id = f"{entry_id}_{description.key}"
 
     @property
     def native_value(self):

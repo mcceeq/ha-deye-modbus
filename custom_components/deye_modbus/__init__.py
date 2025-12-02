@@ -1,4 +1,4 @@
-"""Home Assistant integration for local Deye Modbus access."""
+"""Home Assistant integration for Deye Modbus."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
-        name="deye_local",
+        name=DOMAIN,
         update_method=_async_update_data,
         update_interval=DEFAULT_SCAN_INTERVAL,
     )
