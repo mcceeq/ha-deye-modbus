@@ -255,10 +255,52 @@ def _decode_item(item, regs: list[int]) -> Any:
                 return hour, minute
         return None, None
 
+    def _decode_two_digit_year(raw: int) -> int | None:
+        """Map a 0-99 byte to a sensible year."""
+        if 0 <= raw <= 99:
+            candidate = 2000 + raw
+            if 1970 <= candidate <= 2100:
+                return candidate
+        return _decode_year(raw)
+
     def _decode_datetime_from_regs(regs_in: list[int]) -> datetime.datetime | None:
         """Try multiple byte orders and register permutations for datetime."""
         if len(regs_in) < 3:
             return None
+
+        # Common Solarman layout: reg0=YY/MM, reg1=DD/HH, reg2=MM/SS
+        y_byte = (regs_in[0] >> 8) & 0xFF
+        m_byte = regs_in[0] & 0xFF
+        d_byte = (regs_in[1] >> 8) & 0xFF
+        h_byte = regs_in[1] & 0xFF
+        min_byte = (regs_in[2] >> 8) & 0xFF
+        s_byte = regs_in[2] & 0xFF
+        solarman_year = _decode_two_digit_year(y_byte)
+        solarman_month = _decode_component(m_byte, 12)
+        solarman_day = _decode_component(d_byte, 31)
+        solarman_hour = _decode_component(h_byte, 23, allow_zero=True)
+        solarman_minute = _decode_component(min_byte, 59, allow_zero=True)
+        solarman_second = _decode_component(s_byte, 59, allow_zero=True)
+        if None not in (
+            solarman_year,
+            solarman_month,
+            solarman_day,
+            solarman_hour,
+            solarman_minute,
+            solarman_second,
+        ):
+            try:
+                return datetime.datetime(
+                    solarman_year,
+                    solarman_month,
+                    solarman_day,
+                    solarman_hour or 0,
+                    solarman_minute or 0,
+                    solarman_second or 0,
+                )
+            except Exception:  # noqa: BLE001
+                pass
+
         # Prefer definition order first, then permutations for resilience
         idx_orders = [(0, 1, 2), (1, 0, 2), (2, 0, 1), (0, 2, 1), (1, 2, 0), (2, 1, 0)]
         for y_idx, md_idx, hm_idx in idx_orders:
@@ -271,6 +313,23 @@ def _decode_item(item, regs: list[int]) -> Any:
                 return datetime.datetime(year, month, day, hour or 0, minute or 0)
             except Exception:  # noqa: BLE001
                 continue
+        # Fallback: interpret successive bytes as YH,YL,M,D,H,M
+        bytes_linear: list[int] = []
+        for reg in regs_in:
+            bytes_linear.append((reg >> 8) & 0xFF)
+            bytes_linear.append(reg & 0xFF)
+        if len(bytes_linear) >= 6:
+            y_raw = (bytes_linear[0] << 8) | bytes_linear[1]
+            year = _decode_year(y_raw)
+            month = _decode_component(bytes_linear[2], 12)
+            day = _decode_component(bytes_linear[3], 31)
+            hour = _decode_component(bytes_linear[4], 23, allow_zero=True)
+            minute = _decode_component(bytes_linear[5], 59, allow_zero=True)
+            if None not in (year, month, day, hour, minute):
+                try:
+                    return datetime.datetime(year, month, day, hour or 0, minute or 0)
+                except Exception:  # noqa: BLE001
+                    pass
         return None
 
     if rule in (None, 1):
