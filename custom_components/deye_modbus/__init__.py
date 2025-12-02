@@ -112,6 +112,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Merge with previous to avoid dropping to unknowns when a read fails
             merged = dict(prev)
             merged.update(data)
+            if merged == prev:
+                return prev
             return merged
 
         def_coordinator = DataUpdateCoordinator(
