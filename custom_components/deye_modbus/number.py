@@ -32,9 +32,9 @@ async def async_setup_entry(
     items: list[DefinitionItem] = sol["items"]
 
     base_device_info = {
-        "identifiers": {(DOMAIN, f"{entry.entry_id}_new")},
+        "identifiers": {(DOMAIN, entry.entry_id)},
         "manufacturer": "Deye",
-        "name": _build_base_name(entry.data, suffix="(new)"),
+        "name": _build_base_name(entry.data),
         "configuration_url": _build_config_url(entry.data),
     }
 
@@ -88,7 +88,7 @@ class DeyeDefinitionNumber(CoordinatorEntity, NumberEntity):
         raise NotImplementedError("Write not implemented for numbers")
 
 
-def _build_base_name(entry_data: dict, suffix: str = "") -> str:
+def _build_base_name(entry_data: dict) -> str:
     if host := entry_data.get(CONF_HOST):
         port = entry_data.get(CONF_PORT)
         base = f"Deye Inverter ({host}:{port})" if port else f"Deye Inverter ({host})"

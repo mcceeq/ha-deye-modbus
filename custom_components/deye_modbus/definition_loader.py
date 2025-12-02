@@ -44,8 +44,8 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
             platform = item.get("platform", "sensor")
             rule = item.get("rule")
 
-            # Only support simple sensors/numbers/switch/select at rule 1 for now
-            if rule not in (None, 1):
+            # Only support simple sensors/numbers/switch/select/datetime at a subset of rules for now
+            if rule not in (None, 1, 8):
                 continue
             if platform not in ("sensor", "number", "switch", "select", "binary_sensor", "datetime"):
                 continue

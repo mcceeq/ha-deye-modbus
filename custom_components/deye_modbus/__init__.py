@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+import time
+import datetime
 from pathlib import Path
 from typing import Any
-import time
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -140,6 +141,17 @@ def _decode_item(item, regs: list[int]) -> Any:
             bytes_out.append((reg >> 8) & 0xFF)
             bytes_out.append(reg & 0xFF)
         val = bytes(byte for byte in bytes_out if byte != 0).decode(errors="ignore").strip()
+    elif rule == 8 and len(regs) >= 3:
+        # Heuristic datetime decode: year, month/day, hour/minute
+        try:
+            year = regs[0]
+            month = (regs[1] >> 8) & 0xFF
+            day = regs[1] & 0xFF
+            hour = (regs[2] >> 8) & 0xFF
+            minute = regs[2] & 0xFF
+            val = datetime.datetime(year, month, day, hour, minute)
+        except Exception:  # noqa: BLE001
+            return None
     else:
         # Unsupported rule – skip for now
         return None
