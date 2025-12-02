@@ -102,6 +102,7 @@ class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
                     return int(num) if num.is_integer() else num
                 except Exception:
                     return None
+            return None
         return val
 
 
