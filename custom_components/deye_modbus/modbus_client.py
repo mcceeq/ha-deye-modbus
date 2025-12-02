@@ -84,6 +84,21 @@ class DeyeModbusClient:
         if not self._client:
             raise ConnectionError("Modbus client not initialized")
 
+        async def _read_holding(address: int, count: int):
+            """Read holding registers with compatibility for different pymodbus versions."""
+            last_err: Exception | None = None
+            for kwargs in (
+                {"unit": self._slave_id},
+                {"slave": self._slave_id},
+                {},
+            ):
+                try:
+                    return await self._client.read_holding_registers(address, count, **kwargs)
+                except TypeError as err:
+                    last_err = err
+                    continue
+            raise last_err or TypeError("Failed to call read_holding_registers")
+
         def _signed_16(regs: list[int], idx: int, scale: float | None = None) -> float | int | None:
             if idx >= len(regs):
                 return None
@@ -106,7 +121,7 @@ class DeyeModbusClient:
         data: dict[str, Any] = {}
 
         # Block 1: 70-86 (day totals, frequency, energy)
-        rr = await self._client.read_holding_registers(70, 17, unit=self._slave_id)
+        rr = await _read_holding(70, 17)
         if not rr.isError():
             b1 = rr.registers
             data["day_charge"] = _u16(b1, 0)  # Addr 70
@@ -120,7 +135,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (70-86): {rr}")
 
         # Block 1b: identity/status/temps/energy totals (59-96, 108, 109-112)
-        rr = await self._client.read_holding_registers(59, 54, unit=self._slave_id)
+        rr = await _read_holding(59, 54)
         if not rr.isError():
             b1b = rr.registers
             data["inverter_status"] = _u16(b1b, 0)  # 59
@@ -138,7 +153,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (59-112): {rr}")
 
         # Block 2: 150-158 (voltages)
-        rr = await self._client.read_holding_registers(150, 9, unit=self._slave_id)
+        rr = await _read_holding(150, 9)
         if not rr.isError():
             b2 = rr.registers
             data["grid_voltage_l1"] = _u16(b2, 0, 0.1)  # 150 L1-N
@@ -153,7 +168,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (150-158): {rr}")
 
         # Block 3: 160-172 (currents + grid/external power)
-        rr = await self._client.read_holding_registers(160, 13, unit=self._slave_id)
+        rr = await _read_holding(160, 13)
         if not rr.isError():
             b3 = rr.registers
             data["grid_current_l1"] = _signed_16(b3, 0, 0.01)  # 160
@@ -172,7 +187,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (160-172): {rr}")
 
         # Block 4: 173-180 (output + load power & current)
-        rr = await self._client.read_holding_registers(173, 8, unit=self._slave_id)
+        rr = await _read_holding(173, 8)
         if not rr.isError():
             b4 = rr.registers
             data["output_power_l1"] = _signed_16(b4, 0, 1)  # 173
@@ -186,7 +201,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (173-180): {rr}")
 
         # Block 5: 182-189 (battery temp/voltage/SOC/status + pv power)
-        rr = await self._client.read_holding_registers(182, 8, unit=self._slave_id)
+        rr = await _read_holding(182, 8)
         if not rr.isError():
             b5 = rr.registers
             data["battery_temp"] = _signed_16(b5, 0, 0.1)  # 182
@@ -201,7 +216,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (182-185): {rr}")
 
         # Block 6: 190-194 (battery power/current, load/output freq, relay)
-        rr = await self._client.read_holding_registers(190, 5, unit=self._slave_id)
+        rr = await _read_holding(190, 5)
         if not rr.isError():
             b6 = rr.registers
             data["battery_power"] = _signed_16(b6, 0, 1)  # 190
@@ -213,7 +228,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (190-194): {rr}")
 
         # Block 7: BMS limits 212-219
-        rr = await self._client.read_holding_registers(212, 8, unit=self._slave_id)
+        rr = await _read_holding(212, 8)
         if not rr.isError():
             b7 = rr.registers
             data["bms_max_charge_current"] = _u16(b7, 0, 1)  # 212
@@ -224,7 +239,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (212-219): {rr}")
 
         # Block 8: ToU enable and slot times 248-255
-        rr = await self._client.read_holding_registers(248, 8, unit=self._slave_id)
+        rr = await _read_holding(248, 8)
         if not rr.isError():
             b8 = rr.registers
             data["tou_mode_enable"] = _u16(b8, 0)  # 248
@@ -238,7 +253,7 @@ class DeyeModbusClient:
             raise ConnectionError(f"Modbus read failed (248-255): {rr}")
 
         # Block 9: ToU power limits 256-261
-        rr = await self._client.read_holding_registers(256, 6, unit=self._slave_id)
+        rr = await _read_holding(256, 6)
         if not rr.isError():
             b9 = rr.registers
             data["tou_slot1_power_limit"] = _u16(b9, 0, 1)  # 256
