@@ -23,6 +23,10 @@ class DefinitionItem:
     icon: str | None
     unit: str | None
     rule: int | None
+    range_min: float | None = None
+    range_max: float | None = None
+    mask: int | None = None
+    divide: float | None = None
 
 
 def load_definition(def_path: Path) -> list[DefinitionItem]:
@@ -34,6 +38,9 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
     for group_entry in params:
         group_name = group_entry.get("group", "Unknown")
         for item in group_entry.get("items", []):
+            # Skip attribute-only entries to avoid cluttering entities
+            if item.get("attribute") is not None:
+                continue
             platform = item.get("platform", "sensor")
             rule = item.get("rule")
 
@@ -59,6 +66,13 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
             key = _slug(name)
             scale = item.get("scale")
             lookup = _parse_lookup(item.get("lookup"))
+            range_min = None
+            range_max = None
+            if item.get("range"):
+                range_min = item["range"].get("min")
+                range_max = item["range"].get("max")
+            mask = item.get("mask")
+            divide = item.get("divide")
             items.append(
                 DefinitionItem(
                     key=key,
@@ -71,6 +85,10 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
                     icon=item.get("icon"),
                     unit=item.get("uom"),
                     rule=rule,
+                    range_min=range_min,
+                    range_max=range_max,
+                    mask=int(mask, 0) if isinstance(mask, str) else mask,
+                    divide=divide,
                 )
             )
 

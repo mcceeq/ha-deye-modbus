@@ -9,10 +9,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_BAUDRATE,
@@ -53,29 +50,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         raise ConfigEntryNotReady(f"Failed to connect to inverter: {err}") from err
 
-    async def _async_update_data() -> dict[str, Any]:
-        """Fetch data from the inverter."""
-        try:
-            return await client.async_read_data()
-        except Exception as err:
-            raise UpdateFailed(f"Update failed: {err}") from err
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        name=DOMAIN,
-        update_method=_async_update_data,
-        update_interval=DEFAULT_SCAN_INTERVAL,
-    )
-
-    await coordinator.async_config_entry_first_refresh()
-
     hass.data[DOMAIN][entry.entry_id] = {
         "client": client,
-        "coordinator": coordinator,
     }
 
-    # Optional Solarman-driven coordinator (read-only), kept alongside static
+    # Solarman-driven coordinator (read-only)
     definition_path = Path(__file__).parent / "definitions" / "deye_hybrid.yaml"
     if definition_path.exists():
         solarman_items = load_definition(definition_path)
@@ -88,13 +67,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     if rr.isError():
                         raise ConnectionError(rr)
                     regs = rr.registers
-                    val = regs[0] if regs else None
+                    val = _decode_item(item, regs)
                     if val is None:
                         continue
-                    if item.scale:
-                        val = val * item.scale
-                    if item.lookup and isinstance(val, int):
-                        val = item.lookup.get(val, val)
                     data[item.key] = val
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.debug("Solarman read failed for %s: %s", item.name, err)
@@ -134,3 +109,49 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle an options update."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _decode_item(item, regs: list[int]) -> Any:
+    """Decode registers using a simplified subset of Solarman rules."""
+    if not regs:
+        return None
+
+    val: Any = None
+    rule = item.rule
+
+    if rule in (None, 1):
+        val = regs[0]
+    elif rule == 4 and len(regs) >= 2:
+        val = (regs[0] << 16) | regs[1]
+    elif rule in (5, 7):
+        # Basic string decoding: two ASCII bytes per register, high then low
+        bytes_out = []
+        for reg in regs:
+            bytes_out.append((reg >> 8) & 0xFF)
+            bytes_out.append(reg & 0xFF)
+        val = bytes(byte for byte in bytes_out if byte != 0).decode(errors="ignore").strip()
+    else:
+        # Unsupported rule – skip for now
+        return None
+
+    # Mask/divide/scale if present
+    if hasattr(item, "mask") and item.mask is not None:
+        try:
+            val = val & item.mask  # type: ignore[operator]
+        except Exception:  # noqa: BLE001
+            pass
+    if hasattr(item, "divide") and item.divide:
+        try:
+            val = val / item.divide  # type: ignore[operator]
+        except Exception:  # noqa: BLE001
+            pass
+    if item.scale:
+        try:
+            val = val * item.scale  # type: ignore[operator]
+        except Exception:  # noqa: BLE001
+            pass
+
+    if item.lookup and isinstance(val, int):
+        val = item.lookup.get(val, val)
+
+    return val
