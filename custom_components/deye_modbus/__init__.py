@@ -159,6 +159,15 @@ def _decode_item(item, regs: list[int]) -> Any:
                 return None
         except Exception:  # noqa: BLE001
             return None
+    elif rule == 9:
+        # HHMM encoded in a single register
+        try:
+            hhmm = regs[0]
+            hour = hhmm // 100
+            minute = hhmm % 100
+            val = datetime.time(hour, minute, 0)
+        except Exception:  # noqa: BLE001
+            return None
     else:
         # Unsupported rule – skip for now
         return None

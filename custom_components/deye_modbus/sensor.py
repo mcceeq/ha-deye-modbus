@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import re
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -27,6 +28,14 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from .const import DOMAIN, CONF_HOST, CONF_PORT, CONF_DEVICE
 from .definition_loader import DefinitionItem
 
+_NUMERIC_DEVICE_CLASSES = {
+    SensorDeviceClass.POWER,
+    SensorDeviceClass.ENERGY,
+    SensorDeviceClass.VOLTAGE,
+    SensorDeviceClass.CURRENT,
+    SensorDeviceClass.FREQUENCY,
+    SensorDeviceClass.TEMPERATURE,
+}
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -82,7 +91,18 @@ class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return self.coordinator.data.get(self.entity_description.key)
+        val = self.coordinator.data.get(self.entity_description.key)
+        if isinstance(val, str) and self.entity_description.device_class in _NUMERIC_DEVICE_CLASSES:
+            # Try to extract a numeric component from strings like "50 Hz"
+            match = re.search(r"[-+]?\\d*\\.?\\d+", val)
+            if match:
+                try:
+                    num = float(match.group(0))
+                    # Return int when appropriate
+                    return int(num) if num.is_integer() else num
+                except Exception:
+                    return None
+        return val
 
 
 def _build_base_name(entry_data: dict) -> str:
