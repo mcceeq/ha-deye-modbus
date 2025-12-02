@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-import inspect
 from typing import Any
+import inspect
 
 from pymodbus.client import AsyncModbusSerialClient, AsyncModbusTcpClient
 
@@ -74,7 +74,11 @@ class DeyeModbusClient:
     async def async_close(self) -> None:
         """Close any open connections."""
         if self._client:
-            await self._client.close()
+            close_fn = getattr(self._client, "close", None)
+            if close_fn:
+                result = close_fn()
+                if inspect.isawaitable(result):
+                    await result
             self._client = None
 
     async def async_read_data(self) -> dict[str, Any]:
