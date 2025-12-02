@@ -141,15 +141,22 @@ def _decode_item(item, regs: list[int]) -> Any:
             bytes_out.append((reg >> 8) & 0xFF)
             bytes_out.append(reg & 0xFF)
         val = bytes(byte for byte in bytes_out if byte != 0).decode(errors="ignore").strip()
-    elif rule == 8 and len(regs) >= 3:
-        # Heuristic datetime decode: year, month/day, hour/minute
+    elif rule == 8:
         try:
-            year = regs[0]
-            month = (regs[1] >> 8) & 0xFF
-            day = regs[1] & 0xFF
-            hour = (regs[2] >> 8) & 0xFF
-            minute = regs[2] & 0xFF
-            val = datetime.datetime(year, month, day, hour, minute)
+            if item.platform == "datetime" and len(regs) >= 3:
+                year = regs[0]
+                month = (regs[1] >> 8) & 0xFF
+                day = regs[1] & 0xFF
+                hour = (regs[2] >> 8) & 0xFF
+                minute = regs[2] & 0xFF
+                val = datetime.datetime(year, month, day, hour, minute)
+            elif item.platform == "time" and len(regs) >= 1:
+                hour = (regs[0] >> 8) & 0xFF
+                minute = regs[0] & 0xFF
+                second = regs[1] & 0xFF if len(regs) > 1 else 0
+                val = datetime.time(hour, minute, second)
+            else:
+                return None
         except Exception:  # noqa: BLE001
             return None
     else:

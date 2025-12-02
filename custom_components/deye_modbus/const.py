@@ -3,7 +3,7 @@
 from datetime import timedelta
 DOMAIN = "deye_modbus"
 # Dynamic platforms driven by external definitions
-PLATFORMS: list[str] = ["sensor", "number", "select", "switch", "datetime"]
+PLATFORMS: list[str] = ["sensor", "number", "select", "switch", "datetime", "time"]
 
 CONF_CONNECTION_TYPE = "connection_type"
 CONNECTION_TYPE_RTU = "rtu"
