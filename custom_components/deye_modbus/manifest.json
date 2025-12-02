@@ -1,7 +1,7 @@
 {
   "domain": "deye_modbus",
   "name": "Deye Inverter Modbus",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "documentation": "https://github.com/mcceeq/ha-deye-modbus",
   "requirements": ["pymodbus>=3.6.6"],
   "codeowners": ["@mcceeq"],

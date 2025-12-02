@@ -8,6 +8,8 @@ import time as _time
 from pathlib import Path
 from typing import Any
 
+from homeassistant.util import dt as dt_util
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -149,7 +151,10 @@ def _decode_item(item, regs: list[int]) -> Any:
                 day = regs[1] & 0xFF
                 hour = (regs[2] >> 8) & 0xFF
                 minute = regs[2] & 0xFF
-                val = datetime.datetime(year, month, day, hour, minute)
+                # sanity check years
+                if year < 1970 or year > 2100:
+                    return None
+                val = datetime.datetime(year, month, day, hour, minute, tzinfo=dt_util.DEFAULT_TIME_ZONE)
             elif item.platform == "time" and len(regs) >= 1:
                 hour = (regs[0] >> 8) & 0xFF
                 minute = regs[0] & 0xFF
