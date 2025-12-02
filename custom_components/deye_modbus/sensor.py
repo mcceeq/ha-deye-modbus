@@ -94,7 +94,7 @@ class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
         val = self.coordinator.data.get(self.entity_description.key)
         if isinstance(val, str) and self.entity_description.device_class in _NUMERIC_DEVICE_CLASSES:
             # Try to extract a numeric component from strings like "50 Hz"
-            match = re.search(r"[-+]?\\d*\\.?\\d+", val)
+            match = re.search(r"[-+]?\d*\.?\d+", val)
             if match:
                 try:
                     num = float(match.group(0))

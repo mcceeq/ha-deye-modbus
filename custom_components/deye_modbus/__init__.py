@@ -181,6 +181,41 @@ def _decode_item(item, regs: list[int]) -> Any:
     val: Any = None
     rule = item.rule
 
+    def _bcd_byte_to_int(raw: int) -> int | None:
+        """Convert a single BCD-encoded byte (0x00-0x99) to int."""
+        tens = (raw >> 4) & 0x0F
+        ones = raw & 0x0F
+        if tens >= 10 or ones >= 10:
+            return None
+        return tens * 10 + ones
+
+    def _decode_year(raw: int) -> int | None:
+        """Return a plausible four-digit year from raw or BCD encoded data."""
+        if 1970 <= raw <= 2100:
+            return raw
+        if 0 <= raw < 100:
+            # Some devices expose a two-digit year
+            candidate = 2000 + raw
+            return candidate if candidate <= 2100 else None
+        # Attempt BCD decode (e.g., 0x2024 -> 2024)
+        high = _bcd_byte_to_int((raw >> 8) & 0xFF)
+        low = _bcd_byte_to_int(raw & 0xFF)
+        if high is None or low is None:
+            return None
+        candidate = high * 100 + low
+        return candidate if 1970 <= candidate <= 2100 else None
+
+    def _decode_component(raw: int, upper: int, allow_zero: bool = False) -> int | None:
+        """Decode a date/time component, handling both binary and BCD values."""
+        if (allow_zero and 0 <= raw <= upper) or (not allow_zero and 1 <= raw <= upper):
+            return raw
+        decoded = _bcd_byte_to_int(raw)
+        if decoded is None:
+            return None
+        if allow_zero:
+            return decoded if 0 <= decoded <= upper else None
+        return decoded if 1 <= decoded <= upper else None
+
     if rule in (None, 1):
         val = regs[0]
     elif rule == 4 and len(regs) >= 2:
@@ -195,19 +230,20 @@ def _decode_item(item, regs: list[int]) -> Any:
     elif rule == 8:
         try:
             if item.platform == "datetime" and len(regs) >= 3:
-                year = regs[0]
-                month = (regs[1] >> 8) & 0xFF
-                day = regs[1] & 0xFF
-                hour = (regs[2] >> 8) & 0xFF
-                minute = regs[2] & 0xFF
-                # sanity check years
-                if year < 1970 or year > 2100:
+                year = _decode_year(regs[0])
+                month = _decode_component((regs[1] >> 8) & 0xFF, 12)
+                day = _decode_component(regs[1] & 0xFF, 31)
+                hour = _decode_component((regs[2] >> 8) & 0xFF, 23, allow_zero=True)
+                minute = _decode_component(regs[2] & 0xFF, 59, allow_zero=True)
+                if None in (year, month, day, hour, minute):
                     return None
                 val = datetime.datetime(year, month, day, hour, minute)
             elif item.platform == "time" and len(regs) >= 1:
-                hour = (regs[0] >> 8) & 0xFF
-                minute = regs[0] & 0xFF
-                second = regs[1] & 0xFF if len(regs) > 1 else 0
+                hour = _decode_component((regs[0] >> 8) & 0xFF, 23, allow_zero=True)
+                minute = _decode_component(regs[0] & 0xFF, 59, allow_zero=True)
+                second = _decode_component(regs[1] & 0xFF, 59, allow_zero=True) if len(regs) > 1 else 0
+                if None in (hour, minute, second):
+                    return None
                 val = datetime.time(hour, minute, second)
             else:
                 return None
