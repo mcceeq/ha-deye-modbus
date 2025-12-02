@@ -70,6 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             nonlocal last_ts
             data: dict[str, Any] = {}
             read_ts = _time.monotonic()
+            prev = hass.data[DOMAIN][entry.entry_id]["definitions"]["coordinator"].data if "definitions" in hass.data[DOMAIN][entry.entry_id] else {}
             for item in def_items:
                 try:
                     rr = await client.async_read_holding_registers(item.registers[0], len(item.registers))
@@ -87,7 +88,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 existing = hass.data[DOMAIN][entry.entry_id].get("definitions", {}).get("coordinator")
                 return existing.data if existing else {}
             last_ts = read_ts
-            return data
+            # Merge with previous to avoid dropping to unknowns when a read fails
+            merged = dict(prev)
+            merged.update(data)
+            return merged
 
         def_coordinator = DataUpdateCoordinator(
             hass,

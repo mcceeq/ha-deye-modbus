@@ -25,5 +25,5 @@ DEFAULT_BAUDRATE = 9600
 DEFAULT_PARITY = "N"  # None/Even/Odd as N/E/O for pymodbus
 DEFAULT_STOPBITS = 1
 DEFAULT_SLAVE_ID = 1
-DEFAULT_SCAN_INTERVAL = timedelta(seconds=1)
-DEFINITION_SCAN_INTERVAL = timedelta(seconds=1)
+DEFAULT_SCAN_INTERVAL = timedelta(seconds=2)
+DEFINITION_SCAN_INTERVAL = timedelta(seconds=2)
