@@ -76,52 +76,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         async def _async_update_definitions() -> dict[str, Any]:
             nonlocal last_ts
-            data: dict[str, Any] = {}
-            read_ts = _time.monotonic()
             prev = hass.data[DOMAIN][entry.entry_id]["definitions"]["coordinator"].data if "definitions" in hass.data[DOMAIN][entry.entry_id] else {}
-            # Read in batches
-            registers: dict[int, int] = {}
-            for start, count in spans:
-                try:
-                    rr = await client.async_read_holding_registers(start, count)
-                    if rr.isError():
-                        raise ConnectionError(rr)
-                    for idx, reg_val in enumerate(rr.registers):
-                        registers[start + idx] = reg_val
-                except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("Definition batch read failed (%s, %s): %s", start, count, err)
-                    continue
+            try:
+                data: dict[str, Any] = {}
+                read_ts = _time.monotonic()
+                # Read in batches
+                registers: dict[int, int] = {}
+                for start, count in spans:
+                    try:
+                        rr = await client.async_read_holding_registers(start, count)
+                        if rr.isError():
+                            raise ConnectionError(rr)
+                        for idx, reg_val in enumerate(rr.registers):
+                            registers[start + idx] = reg_val
+                    except Exception as err:  # noqa: BLE001
+                        _LOGGER.debug("Definition batch read failed (%s, %s): %s", start, count, err)
+                        continue
 
-            # Decode items using cached register values
-            for item in def_items:
-                try:
-                    regs = []
-                    missing = False
-                    for addr in item.registers:
-                        if addr in registers:
-                            regs.append(registers[addr])
-                        else:
-                            missing = True
-                            break
-                    if missing:
+                # Decode items using cached register values
+                for item in def_items:
+                    try:
+                        regs = []
+                        missing = False
+                        for addr in item.registers:
+                            if addr in registers:
+                                regs.append(registers[addr])
+                            else:
+                                missing = True
+                                break
+                        if missing:
+                            continue
+                        val = _decode_item(item, regs)
+                        if val is None:
+                            continue
+                        data[item.key] = val
+                    except Exception as err:  # noqa: BLE001
+                        _LOGGER.debug("Definition decode failed for %s: %s", item.name, err)
                         continue
-                    val = _decode_item(item, regs)
-                    if val is None:
-                        continue
-                    data[item.key] = val
-                except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("Definition decode failed for %s: %s", item.name, err)
-                    continue
-            if read_ts <= last_ts:
-                existing = hass.data[DOMAIN][entry.entry_id].get("definitions", {}).get("coordinator")
-                return existing.data if existing else {}
-            last_ts = read_ts
-            # Merge with previous to avoid dropping to unknowns when a read fails
-            merged = dict(prev)
-            merged.update(data)
-            if merged == prev:
+                if read_ts <= last_ts:
+                    existing = hass.data[DOMAIN][entry.entry_id].get("definitions", {}).get("coordinator")
+                    return existing.data if existing else {}
+                last_ts = read_ts
+                # Merge with previous to avoid dropping to unknowns when a read fails
+                merged = dict(prev)
+                merged.update(data)
+                if merged == prev:
+                    return prev
+                return merged
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("Definition update failed; keeping previous data: %s", err)
                 return prev
-            return merged
 
         def_coordinator = DataUpdateCoordinator(
             hass,
