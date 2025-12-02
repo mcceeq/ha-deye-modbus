@@ -87,12 +87,15 @@ class DeyeModbusClient:
         async def _read_holding(address: int, count: int):
             """Read holding registers with broad compatibility across pymodbus versions."""
             try:
-                return await self._client.read_holding_registers(address, count, self._slave_id)
+                return await self._client.read_holding_registers(address, count)
             except TypeError as err1:
                 try:
-                    return await self._client.read_holding_registers(address, count)
+                    return await self._client.read_holding_registers(address, count, unit=self._slave_id)
                 except TypeError as err2:
-                    raise err1 from err2
+                    try:
+                        return await self._client.read_holding_registers(address, count, slave=self._slave_id)
+                    except TypeError as err3:
+                        raise err1 from err3
 
         def _signed_16(regs: list[int], idx: int, scale: float | None = None) -> float | int | None:
             if idx >= len(regs):
