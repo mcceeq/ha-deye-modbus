@@ -85,19 +85,14 @@ class DeyeModbusClient:
             raise ConnectionError("Modbus client not initialized")
 
         async def _read_holding(address: int, count: int):
-            """Read holding registers with compatibility for different pymodbus versions."""
-            last_err: Exception | None = None
-            for kwargs in (
-                {"unit": self._slave_id},
-                {"slave": self._slave_id},
-                {},
-            ):
+            """Read holding registers with broad compatibility across pymodbus versions."""
+            try:
+                return await self._client.read_holding_registers(address, count, self._slave_id)
+            except TypeError as err1:
                 try:
-                    return await self._client.read_holding_registers(address, count, **kwargs)
-                except TypeError as err:
-                    last_err = err
-                    continue
-            raise last_err or TypeError("Failed to call read_holding_registers")
+                    return await self._client.read_holding_registers(address, count)
+                except TypeError as err2:
+                    raise err1 from err2
 
         def _signed_16(regs: list[int], idx: int, scale: float | None = None) -> float | int | None:
             if idx >= len(regs):
