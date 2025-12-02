@@ -61,7 +61,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if definition_path.exists():
         def_items = load_definition(definition_path)
 
+        last_ts: float = 0
+
         async def _async_update_definitions() -> dict[str, Any]:
+            nonlocal last_ts
             data: dict[str, Any] = {}
             read_ts = time.monotonic()
             for item in def_items:
@@ -77,11 +80,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.debug("Definition read failed for %s: %s", item.name, err)
                     continue
-            last_ts = hass.data[DOMAIN][entry.entry_id]["definitions"].get("last_ts", 0)
             if read_ts <= last_ts:
-                # Discard older/stale read
-                return hass.data[DOMAIN][entry.entry_id]["definitions"]["coordinator"].data
-            hass.data[DOMAIN][entry.entry_id]["definitions"]["last_ts"] = read_ts
+                existing = hass.data[DOMAIN][entry.entry_id].get("definitions", {}).get("coordinator")
+                return existing.data if existing else {}
+            last_ts = read_ts
             return data
 
         def_coordinator = DataUpdateCoordinator(
@@ -95,7 +97,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN][entry.entry_id]["definitions"] = {
             "items": def_items,
             "coordinator": def_coordinator,
-            "last_ts": 0,
         }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
