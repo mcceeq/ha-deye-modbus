@@ -14,11 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class DeyeModbusClient:
-    """Handle Modbus RTU (serial) communication with a Deye inverter.
-
-    NOTE: Register addresses and decoding are placeholders; wire them to real
-    Deye register maps to surface meaningful data.
-    """
+    """Handle Modbus RTU (serial) and TCP communication with a Deye inverter."""
 
     def __init__(
         self,
@@ -70,7 +66,8 @@ class DeyeModbusClient:
         if not connected:
             raise ConnectionError("Failed to open Modbus connection")
 
-        # Set default unit/slave if supported by client implementation
+        # Some client implementations expose a default unit id; not required,
+        # since we always pass it per-call, but safe to set if present.
         if hasattr(self._client, "unit_id"):
             self._client.unit_id = self._slave_id
 
@@ -81,29 +78,54 @@ class DeyeModbusClient:
             self._client = None
 
     async def async_read_data(self) -> dict[str, Any]:
-        """Read values from the inverter.
-
-        The mapping below is a minimal set based on known addresses. Adjust
-        scaling/decoding as you refine the register map.
-        """
+        """Read values from the inverter."""
         if not self._client:
             raise ConnectionError("Modbus client not initialized")
 
         async def _read_holding(address: int, count: int):
-            """Read holding registers, adapting to different pymodbus signatures."""
-            sig = inspect.signature(self._client.read_holding_registers)
+            """Read holding registers, adapting to different pymodbus signatures.
+
+            Newer pymodbus (3.6+/4.x) has:
+                read_holding_registers(address: int, *, count: int = 1, device_id: int = 1, ...)
+
+            Older versions allowed positional count and used 'unit' or 'slave'.
+            Passing everything as KEYWORD args works for both.
+            """
+            func = self._client.read_holding_registers
+            sig = inspect.signature(func)
             params = sig.parameters
+
             kwargs: dict[str, Any] = {}
-            if "unit" in params:
+
+            # Unit/device id parameter name
+            if "device_id" in params:
+                kwargs["device_id"] = self._slave_id
+            elif "unit" in params:
                 kwargs["unit"] = self._slave_id
             elif "slave" in params:
                 kwargs["slave"] = self._slave_id
 
+            # Count / quantity parameter name
+            if "count" in params:
+                kwargs["count"] = count
+            elif "quantity" in params:
+                kwargs["quantity"] = count
+            elif "size" in params:
+                kwargs["size"] = count
+
             try:
-                return await self._client.read_holding_registers(address, count, **kwargs)
+                return await func(address, **kwargs)
             except TypeError as err:
-                # Last resort: call without any slave/unit kwarg
-                return await self._client.read_holding_registers(address, count)
+                # Log details and re-raise – this should not normally happen
+                _LOGGER.error(
+                    "read_holding_registers call failed (address=%s, count=%s, kwargs=%s, signature=%s): %s",
+                    address,
+                    count,
+                    kwargs,
+                    sig,
+                    err,
+                )
+                raise
 
         def _signed_16(regs: list[int], idx: int, scale: float | None = None) -> float | int | None:
             if idx >= len(regs):
@@ -148,13 +170,11 @@ class DeyeModbusClient:
             data["internal_temp_1"] = _signed_16(b1b, 31, 0.01)  # 90
             data["internal_temp_2"] = _signed_16(b1b, 32, 0.01)  # 91
             data["inverter_total_energy"] = _u16(b1b, 37, 0.1)  # 96
-            # 108, 109-112
             data["inverter_day_energy"] = _u16(b1b, 49, 0.1)  # 108
             data["pv1_voltage"] = _u16(b1b, 50, 0.1)  # 109
             data["pv1_current"] = _u16(b1b, 51, 0.01)  # 110
             data["pv2_voltage"] = _u16(b1b, 52, 0.1)  # 111
             data["pv2_current"] = _u16(b1b, 53, 0.01)  # 112
-            # serial number fragment (0x0003, offset -56): 3-? Not fetched here.
         else:
             raise ConnectionError(f"Modbus read failed (59-112): {rr}")
 
@@ -185,7 +205,7 @@ class DeyeModbusClient:
             data["output_current_l2"] = _signed_16(b3, 5, 0.01)  # 165
             data["grid_power_l1"] = _signed_16(b3, 7, 1)  # 167
             data["grid_power_l2"] = _signed_16(b3, 8, 1)  # 168
-            data["grid_import_export_power"] = _signed_16(b3, 10, 1)  # 170 total grid power (signed)
+            data["grid_import_export_power"] = _signed_16(b3, 10, 1)  # 170
             data["external_power_l1"] = _signed_16(b3, 10, 1)  # 170
             data["external_power_l2"] = _signed_16(b3, 11, 1)  # 171
             data["external_power_total"] = _signed_16(b3, 12, 1)  # 172
@@ -206,7 +226,7 @@ class DeyeModbusClient:
         else:
             raise ConnectionError(f"Modbus read failed (173-180): {rr}")
 
-        # Block 5: 182-189 (battery temp/voltage/SOC/status + pv power)
+        # Block 5: 182-189 (battery temp/voltage/SOC/status + PV power)
         rr = await _read_holding(182, 8)
         if not rr.isError():
             b5 = rr.registers
@@ -216,10 +236,10 @@ class DeyeModbusClient:
             data["battery_status"] = _u16(b5, 3, 1)  # 185
             data["pv1_power"] = _u16(b5, 4, 1)  # 186
             data["pv2_power"] = _u16(b5, 5, 1)  # 187
-            data["battery_status_alt"] = _u16(b5, 6, 1)  # 188 (not in list but placeholder)
+            data["battery_status_alt"] = _u16(b5, 6, 1)  # 188
             data["battery_status_flag"] = _u16(b5, 7, 1)  # 189
         else:
-            raise ConnectionError(f"Modbus read failed (182-185): {rr}")
+            raise ConnectionError(f"Modbus read failed (182-189): {rr}")
 
         # Block 6: 190-194 (battery power/current, load/output freq, relay)
         rr = await _read_holding(190, 5)
