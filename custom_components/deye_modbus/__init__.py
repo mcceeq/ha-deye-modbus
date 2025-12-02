@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -27,6 +28,7 @@ from .const import (
     PLATFORMS,
 )
 from .modbus_client import DeyeModbusClient
+from .definition_loader import load_definition
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +74,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "client": client,
         "coordinator": coordinator,
     }
+
+    # Optional Solarman-driven coordinator (read-only), kept alongside static
+    definition_path = Path(__file__).parent / "definitions" / "deye_hybrid.yaml"
+    if definition_path.exists():
+        solarman_items = load_definition(definition_path)
+
+        async def _async_update_solarman() -> dict[str, Any]:
+            data: dict[str, Any] = {}
+            for item in solarman_items:
+                try:
+                    rr = await client.async_read_holding_registers(item.registers[0], len(item.registers))
+                    if rr.isError():
+                        raise ConnectionError(rr)
+                    regs = rr.registers
+                    val = regs[0] if regs else None
+                    if val is None:
+                        continue
+                    if item.scale:
+                        val = val * item.scale
+                    if item.lookup and isinstance(val, int):
+                        val = item.lookup.get(val, val)
+                    data[item.key] = val
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("Solarman read failed for %s: %s", item.name, err)
+                    continue
+            return data
+
+        solarman_coordinator = DataUpdateCoordinator(
+            hass,
+            _LOGGER,
+            name="deye_modbus_solarman",
+            update_method=_async_update_solarman,
+            update_interval=DEFAULT_SCAN_INTERVAL,
+        )
+        await solarman_coordinator.async_config_entry_first_refresh()
+        hass.data[DOMAIN][entry.entry_id]["solarman"] = {
+            "items": solarman_items,
+            "coordinator": solarman_coordinator,
+        }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

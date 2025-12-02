@@ -1,10 +1,9 @@
 """Constants for the Deye Modbus integration."""
 
 from datetime import timedelta
-from homeassistant.const import Platform
-
 DOMAIN = "deye_modbus"
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+# Note: include custom platform "solarman_sensor" for dynamic Solarman-driven sensors
+PLATFORMS: list[str] = ["sensor", "number", "solarman_sensor"]
 
 CONF_CONNECTION_TYPE = "connection_type"
 CONNECTION_TYPE_RTU = "rtu"
