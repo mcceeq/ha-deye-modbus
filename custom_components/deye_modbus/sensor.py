@@ -109,6 +109,7 @@ class DeyeMetaSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator)
         self._key = key
+        self._entry_id = entry_id
         self._attr_unique_id = f"{entry_id}_meta_{key}"
         self._attr_device_info = device_info
         self._attr_name = name
@@ -117,9 +118,8 @@ class DeyeMetaSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        meta = self.coordinator.hass.data[DOMAIN][self.coordinator.config_entry.entry_id].get("meta", {})
-        val = meta.get(self._key)
-        return val
+        meta = self.coordinator.hass.data[DOMAIN].get(self._entry_id, {}).get("meta", {})
+        return meta.get(self._key)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

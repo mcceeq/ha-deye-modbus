@@ -127,8 +127,9 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data.update(entry.options)
         return data
 
-    async def async_get_options_flow(self, entry):
-        return DeyeModbusOptionsFlow(entry)
+    @staticmethod
+    async def async_get_options_flow(config_entry):
+        return DeyeModbusOptionsFlow(config_entry)
 
 
 class DeyeModbusOptionsFlow(config_entries.OptionsFlow):

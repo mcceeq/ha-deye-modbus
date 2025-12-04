@@ -28,3 +28,4 @@ DEFAULT_STOPBITS = 1
 DEFAULT_SLAVE_ID = 1
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=2)
 DEFINITION_SCAN_INTERVAL = timedelta(seconds=1)
+SLOW_POLL_INTERVAL = timedelta(seconds=5)

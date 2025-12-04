@@ -29,6 +29,7 @@ from .const import (
     DEFINITION_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
+    SLOW_POLL_INTERVAL,
 )
 from .modbus_client import DeyeModbusClient
 from .definition_loader import load_definition
@@ -76,6 +77,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Load YAML in executor to avoid blocking the event loop
         def_items = await hass.async_add_executor_job(load_definition, definition_path)
         spans = _build_spans(def_items)
+        # Identify fast-refresh items (power/current-related) and build spans
+        fast_items = [
+            item
+            for item in def_items
+            if (item.unit or "").lower() in ("a", "w")
+            or "power" in item.key
+            or "current" in item.key
+        ]
+        fast_spans = _build_spans(fast_items) or spans
         hass.data[DOMAIN][entry.entry_id]["meta"] = {
             "last_success": None,
             "last_error": None,
@@ -83,6 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         meta = hass.data[DOMAIN][entry.entry_id]["meta"]
 
         last_ts: float = 0
+        last_full_read: float = 0
         interval = data.get(CONF_SCAN_INTERVAL)
         try:
             update_interval = (
@@ -95,6 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         async def _async_update_definitions() -> dict[str, Any]:
             nonlocal last_ts
+            nonlocal last_full_read
             prev = hass.data[DOMAIN][entry.entry_id]["definitions"]["coordinator"].data if "definitions" in hass.data[DOMAIN][entry.entry_id] else {}
             try:
                 data: dict[str, Any] = {}
@@ -102,7 +114,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 # Read in batches
                 registers: dict[int, int] = {}
                 successful_spans = 0
-                for start, count in spans:
+                # Decide whether to run a full (slow) pass or just the fast subset
+                full_pass = (read_ts - last_full_read) >= SLOW_POLL_INTERVAL.total_seconds()
+                spans_to_read = spans if full_pass else fast_spans
+                if full_pass:
+                    last_full_read = read_ts
+                for start, count in spans_to_read:
                     try:
                         rr = await client.async_read_holding_registers(start, count)
                         if rr.isError():
