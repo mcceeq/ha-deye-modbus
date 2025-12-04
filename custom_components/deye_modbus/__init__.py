@@ -136,7 +136,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                             val,
                         )
                     except Exception as err:  # noqa: BLE001
-                    _LOGGER.warning("Definition decode failed for %s: %s", item.name, err)
+                        _LOGGER.warning("Definition decode failed for %s: %s", item.name, err)
                         continue
 
                 if not data:
