@@ -160,6 +160,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 merged = dict(prev)
                 merged.update(data)
                 if merged == prev:
+                    _LOGGER.debug("Definition update yielded no changed values; skipping state refresh")
                     return prev
                 return merged
             except Exception as err:  # noqa: BLE001
