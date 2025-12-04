@@ -13,7 +13,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
     CONF_BAUDRATE,
@@ -82,18 +82,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 read_ts = _time.monotonic()
                 # Read in batches
                 registers: dict[int, int] = {}
+                successful_spans = 0
                 for start, count in spans:
                     try:
                         rr = await client.async_read_holding_registers(start, count)
                         if rr.isError():
                             raise ConnectionError(rr)
+                        vals = list(getattr(rr, "registers", []))
+                        _LOGGER.debug(
+                            "Definition read @%s (%s regs): %s",
+                            start,
+                            len(vals),
+                            vals if len(vals) <= 12 else f"{vals[:12]}...",
+                        )
                         for idx, reg_val in enumerate(rr.registers):
                             registers[start + idx] = reg_val
+                        successful_spans += 1
                     except Exception as err:  # noqa: BLE001
-                        _LOGGER.debug("Definition batch read failed (%s, %s): %s", start, count, err)
+                        _LOGGER.warning("Definition batch read failed (%s, %s): %s", start, count, err)
                         continue
 
+                if not registers:
+                    msg = "No Modbus definition reads succeeded; keeping previous data"
+                    if prev:
+                        _LOGGER.error("%s (%s previous keys)", msg, len(prev))
+                        return prev
+                    raise UpdateFailed(msg)
+
                 # Decode items using cached register values
+                decoded = 0
                 for item in def_items:
                     try:
                         regs = []
@@ -110,9 +127,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         if val is None:
                             continue
                         data[item.key] = val
+                        decoded += 1
+                        _LOGGER.debug(
+                            "Decoded %s from registers %s: %s -> %s",
+                            item.key,
+                            item.registers,
+                            regs,
+                            val,
+                        )
                     except Exception as err:  # noqa: BLE001
-                        _LOGGER.debug("Definition decode failed for %s: %s", item.name, err)
+                        _LOGGER.warning("Definition decode failed for %s: %s", item.name, err)
                         continue
+
+                if not data:
+                    msg = "Definition decode produced no values; keeping previous data"
+                    if prev:
+                        _LOGGER.error("%s (%s previous keys)", msg, len(prev))
+                        return prev
+                    raise UpdateFailed(msg)
+
+                _LOGGER.debug(
+                    "Definition update decoded %s items; spans ok=%s/%s",
+                    decoded,
+                    successful_spans,
+                    len(spans),
+                )
                 if read_ts <= last_ts:
                     existing = hass.data[DOMAIN][entry.entry_id].get("definitions", {}).get("coordinator")
                     return existing.data if existing else {}
