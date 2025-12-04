@@ -263,6 +263,9 @@ class DeyeModbusClient:
 
     async def async_read_holding_registers(self, address: int, count: int):
         """Read holding registers, adapting to different pymodbus signatures."""
+        if not self._client:
+            raise ConnectionError("Modbus client not initialized")
+
         func = self._client.read_holding_registers
         sig = inspect.signature(func)
         params = sig.parameters

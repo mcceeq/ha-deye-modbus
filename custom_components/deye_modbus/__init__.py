@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-import datetime
+import datetime as dt
 import time as _time
 from pathlib import Path
 from typing import Any
@@ -136,7 +136,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                             val,
                         )
                     except Exception as err:  # noqa: BLE001
-                        _LOGGER.warning("Definition decode failed for %s: %s", item.name, err)
+                    _LOGGER.warning("Definition decode failed for %s: %s", item.name, err)
                         continue
 
                 if not data:
@@ -306,7 +306,7 @@ def _decode_item(item, regs: list[int]) -> Any:
                 return candidate
         return _decode_year(raw)
 
-    def _decode_datetime_from_regs(regs_in: list[int]) -> datetime.datetime | None:
+    def _decode_datetime_from_regs(regs_in: list[int]) -> dt.datetime | None:
         """Try multiple byte orders and register permutations for datetime."""
         if len(regs_in) < 3:
             return None
@@ -333,7 +333,7 @@ def _decode_item(item, regs: list[int]) -> Any:
             solarman_second,
         ):
             try:
-                return datetime.datetime(
+                return dt.datetime(
                     solarman_year,
                     solarman_month,
                     solarman_day,
@@ -352,10 +352,10 @@ def _decode_item(item, regs: list[int]) -> Any:
             hour, minute = _decode_hour_min(regs_in[hm_idx])
             if None in (year, month, day, hour, minute):
                 continue
-            try:
-                return datetime.datetime(year, month, day, hour or 0, minute or 0)
-            except Exception:  # noqa: BLE001
-                continue
+                try:
+                    return dt.datetime(year, month, day, hour or 0, minute or 0)
+                except Exception:  # noqa: BLE001
+                    continue
         # Fallback: interpret successive bytes as YH,YL,M,D,H,M
         bytes_linear: list[int] = []
         for reg in regs_in:
@@ -370,7 +370,7 @@ def _decode_item(item, regs: list[int]) -> Any:
             minute = _decode_component(bytes_linear[5], 59, allow_zero=True)
             if None not in (year, month, day, hour, minute):
                 try:
-                    return datetime.datetime(year, month, day, hour or 0, minute or 0)
+                    return dt.datetime(year, month, day, hour or 0, minute or 0)
                 except Exception:  # noqa: BLE001
                     pass
         return None
@@ -414,7 +414,7 @@ def _decode_item(item, regs: list[int]) -> Any:
                 if None in (hour, minute, second):
                     _LOGGER.debug("Time decode failed for %s with raw registers %s", item.name, regs)
                     return None
-                val = datetime.time(hour, minute, second)
+                val = dt.time(hour, minute, second)
             else:
                 return None
         except Exception:  # noqa: BLE001
@@ -425,7 +425,7 @@ def _decode_item(item, regs: list[int]) -> Any:
             hhmm = regs[0]
             hour = hhmm // 100
             minute = hhmm % 100
-            val = datetime.time(hour, minute, 0)
+            val = dt.time(hour, minute, 0)
         except Exception:  # noqa: BLE001
             return None
     else:
@@ -454,12 +454,12 @@ def _decode_item(item, regs: list[int]) -> Any:
         val = item.lookup.get(val, val)
 
     # Normalize datetime/time
-    if isinstance(val, datetime.datetime):
+    if isinstance(val, dt.datetime):
         if val.year < 1970 or val.year > 2100:
             return None
         if val.tzinfo is None:
             val = val.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
-    if isinstance(val, datetime.time):
+    if isinstance(val, dt.time):
         # leave naive times as-is
         pass
 
