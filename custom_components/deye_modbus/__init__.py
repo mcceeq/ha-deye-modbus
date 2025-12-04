@@ -22,6 +22,7 @@ from .const import (
     CONF_HOST,
     CONF_PARITY,
     CONF_PORT,
+    CONF_SCAN_INTERVAL,
     CONF_STOPBITS,
     CONF_SLAVE_ID,
     DEFAULT_SCAN_INTERVAL,
@@ -46,15 +47,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Deye Local from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
+    # Prefer options over data to allow edits via options flow
+    data = {**entry.data, **entry.options}
+
     client = DeyeModbusClient(
-        connection_type=entry.data[CONF_CONNECTION_TYPE],
-        device=entry.data.get(CONF_DEVICE),
-        baudrate=entry.data.get(CONF_BAUDRATE),
-        parity=entry.data.get(CONF_PARITY),
-        stopbits=entry.data.get(CONF_STOPBITS),
-        host=entry.data.get(CONF_HOST),
-        port=entry.data.get(CONF_PORT),
-        slave_id=entry.data[CONF_SLAVE_ID],
+        connection_type=data[CONF_CONNECTION_TYPE],
+        device=data.get(CONF_DEVICE),
+        baudrate=data.get(CONF_BAUDRATE),
+        parity=data.get(CONF_PARITY),
+        stopbits=data.get(CONF_STOPBITS),
+        host=data.get(CONF_HOST),
+        port=data.get(CONF_PORT),
+        slave_id=data[CONF_SLAVE_ID],
     )
 
     try:
@@ -69,10 +73,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Definition-driven coordinator (read-only)
     definition_path = Path(__file__).parent / "definitions" / "deye_hybrid.yaml"
     if definition_path.exists():
-        def_items = load_definition(definition_path)
+        # Load YAML in executor to avoid blocking the event loop
+        def_items = await hass.async_add_executor_job(load_definition, definition_path)
         spans = _build_spans(def_items)
+        hass.data[DOMAIN][entry.entry_id]["meta"] = {
+            "last_success": None,
+            "last_error": None,
+        }
+        meta = hass.data[DOMAIN][entry.entry_id]["meta"]
 
         last_ts: float = 0
+        interval = data.get(CONF_SCAN_INTERVAL)
+        try:
+            update_interval = (
+                DEFAULT_SCAN_INTERVAL
+                if interval is None
+                else timedelta(seconds=float(interval))
+            )
+        except Exception:
+            update_interval = DEFINITION_SCAN_INTERVAL
 
         async def _async_update_definitions() -> dict[str, Any]:
             nonlocal last_ts
@@ -146,6 +165,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         return prev
                     raise UpdateFailed(msg)
 
+                meta["last_success"] = dt_util.utcnow()
+                meta["last_error"] = None
                 _LOGGER.debug(
                     "Definition update decoded %s items; spans ok=%s/%s",
                     decoded,
@@ -164,6 +185,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     return prev
                 return merged
             except Exception as err:  # noqa: BLE001
+                meta["last_error"] = str(err)
                 _LOGGER.debug("Definition update failed; keeping previous data: %s", err)
                 return prev
 
@@ -172,7 +194,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER,
             name="deye_modbus_definition",
             update_method=_async_update_definitions,
-            update_interval=DEFINITION_SCAN_INTERVAL,
+            update_interval=update_interval,
         )
         await def_coordinator.async_config_entry_first_refresh()
         hass.data[DOMAIN][entry.entry_id]["definitions"] = {

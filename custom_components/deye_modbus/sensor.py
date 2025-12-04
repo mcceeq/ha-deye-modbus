@@ -19,6 +19,7 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfTemperature,
     UnitOfFrequency,
+    ATTR_ATTRIBUTION,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -46,10 +47,31 @@ async def async_setup_entry(
         return
 
     coordinator = sol["coordinator"]
+    meta = hass.data[DOMAIN][entry.entry_id].get("meta", {})
     items: list[DefinitionItem] = sol["items"]
 
     base_device_info = _base_device(entry.entry_id, entry.data)
     entities: list[CoordinatorEntity] = []
+
+    # Meta sensors on the base inverter device
+    entities.append(
+        DeyeMetaSensor(
+            coordinator=coordinator,
+            entry_id=entry.entry_id,
+            device_info=base_device_info,
+            key="last_success",
+            name="Last Successful Poll",
+        )
+    )
+    entities.append(
+        DeyeMetaSensor(
+            coordinator=coordinator,
+            entry_id=entry.entry_id,
+            device_info=base_device_info,
+            key="last_error",
+            name="Last Poll Error",
+        )
+    )
 
     for item in items:
         if item.platform != "sensor":
@@ -70,6 +92,38 @@ async def async_setup_entry(
 
     if entities:
         async_add_entities(entities)
+
+
+class DeyeMetaSensor(CoordinatorEntity, SensorEntity):
+    """Sensor exposing meta information such as last poll timestamps and errors."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator,
+        entry_id: str,
+        device_info: dict[str, Any],
+        key: str,
+        name: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._key = key
+        self._attr_unique_id = f"{entry_id}_meta_{key}"
+        self._attr_device_info = device_info
+        self._attr_name = name
+        if key == "last_success":
+            self._attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    @property
+    def native_value(self):
+        meta = self.coordinator.hass.data[DOMAIN][self.coordinator.config_entry.entry_id].get("meta", {})
+        val = meta.get(self._key)
+        return val
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        return {ATTR_ATTRIBUTION: "Deye Modbus"}
 
 
 class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
