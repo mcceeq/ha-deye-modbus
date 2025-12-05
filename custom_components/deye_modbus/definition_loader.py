@@ -20,7 +20,6 @@ _ITEM_OVERRIDES: dict[str, dict[str, Any]] = {
             {"key": 0x0002, "value": "Generator"},
         ],
         "lookup_append": [
-            {"key": 0x0003, "value": "Both"},
             {"key": 0x0040, "value": "Disabled"},
             {"key": 0x0041, "value": "Enabled"},
             {"key": 0x0042, "value": "Generator"},

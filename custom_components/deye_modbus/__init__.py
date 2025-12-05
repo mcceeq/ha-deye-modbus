@@ -533,11 +533,7 @@ def _decode_item(item, regs: list[int]) -> Any:
         if getattr(item, "key", "") == "time_of_use":
             # Some firmwares use bit0 as enable; drop it for lookup but keep raw if no match
             base = val & ~1
-            decoded = item.lookup.get(val)
-            if decoded is None:
-                decoded = item.lookup.get(base)
-            if decoded is None and base == 1 and 1 in item.lookup:
-                decoded = item.lookup[1]  # treat bit0 enable as Enabled
+            decoded = item.lookup.get(val) or item.lookup.get(base)
             if decoded is None:
                 _LOGGER.debug(
                     "time_of_use lookup miss: raw=%s (masked=%s) registers=%s",
