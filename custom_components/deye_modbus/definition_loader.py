@@ -20,6 +20,12 @@ _ITEM_OVERRIDES: dict[str, dict[str, Any]] = {
             {"key": 0x0002, "value": "Generator"},
         ],
     },
+    # Time of Use – add explicit Enabled entry without replacing the richer lookup
+    "time_of_use": {
+        "lookup_append": [
+            {"key": 0x0001, "value": "Enabled"},
+        ],
+    },
 }
 
 
@@ -90,6 +96,15 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
                     platform = override["platform"]
                 if "lookup" in override:
                     item["lookup"] = override["lookup"]
+                if "lookup_append" in override:
+                    base_lookup = item.get("lookup") or []
+                    # avoid duplicate keys
+                    existing_keys = {entry.get("key") for entry in base_lookup}
+                    for entry in override["lookup_append"]:
+                        if entry.get("key") in existing_keys:
+                            continue
+                        base_lookup.append(entry)
+                    item["lookup"] = base_lookup
 
             scale = item.get("scale")
             lookup = _parse_lookup(item.get("lookup"))
