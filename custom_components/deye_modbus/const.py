@@ -58,6 +58,8 @@ BATTERY_MODE_EXCLUDES: dict[int, set[str]] = {
         "program_4_soc",
         "program_5_soc",
         "program_6_soc",
+        "smartload_off",
+        "smartload_on",
     },
     1: {
         "battery_equalization",
@@ -78,5 +80,8 @@ BATTERY_MODE_EXCLUDES: dict[int, set[str]] = {
         "battery_empty",
         "battery_grid_charging_start_voltage",
         "battery_generator_charging_start_voltage",
+        "battery_resistance",
+        "smartload_off_voltage",
+        "smartload_on_voltage",
     },  # Lithium: hide lead-acid tuning
 }
