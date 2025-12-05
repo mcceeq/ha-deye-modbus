@@ -424,7 +424,10 @@ def _decode_item(item, regs: list[int]) -> Any:
             raw = raw - 0x10000
         scale = None
         if isinstance(item.scale, list) and item.scale:
-            scale = item.scale[0]
+            if len(item.scale) >= 2 and item.scale[1]:
+                scale = item.scale[0] / item.scale[1]
+            else:
+                scale = item.scale[0]
         elif item.scale is not None:
             scale = item.scale
         val = raw if scale is None else raw * scale
