@@ -41,6 +41,7 @@ class DefinitionItem:
     mask: int | None = None
     divide: float | None = None
     group_name: str | None = None
+    offset: float | None = None
 
 
 def load_definition(def_path: Path) -> list[DefinitionItem]:
@@ -100,6 +101,7 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
             if not mask and item.get("display", {}).get("mask") is not None:
                 mask = item["display"]["mask"]
             divide = item.get("divide")
+            offset = item.get("offset")
             items.append(
                 DefinitionItem(
                     key=key,
@@ -117,6 +119,7 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
                     mask=int(mask, 0) if isinstance(mask, str) else mask,
                     divide=divide,
                     group_name=group_name,
+                    offset=offset,
                 )
             )
 

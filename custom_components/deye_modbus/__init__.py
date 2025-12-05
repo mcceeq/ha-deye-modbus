@@ -42,9 +42,18 @@ _SCALE_OVERRIDES: dict[str, float] = {
     "battery_bms_charge_current_limit": 100,
     "battery_bms_discharge_current_limit": 100,
     # Adjust load power scaling (definitions use [1,10]; override to whole watts)
-    "load_power": 1,
-    "load_l1_power": 1,
-    "load_l2_power": 1,
+    "load_power": 10,
+    "load_l1_power": 10,
+    "load_l2_power": 10,
+    # Currents should be 100x the raw register (except grid currents, which stay at definition scale)
+    "battery_current": 1,
+    "external_ct1_current": 1,
+    "external_ct2_current": 1,
+    "load_l1_current": 1,
+    "load_l2_current": 1,
+    "output_l1_current": 1,
+    "output_l2_current": 1,
+    "battery_bms_current": 1,
 }
 
 
@@ -490,7 +499,12 @@ def _decode_item(item, regs: list[int]) -> Any:
         # Unsupported rule – skip for now
         return None
 
-    # Mask/divide/scale if present
+    # Apply offset, mask/divide/scale if present
+    if hasattr(item, "offset") and item.offset:
+        try:
+            val = val - item.offset  # type: ignore[operator]
+        except Exception:  # noqa: BLE001
+            pass
     if hasattr(item, "mask") and item.mask is not None:
         try:
             val = val & item.mask  # type: ignore[operator]
