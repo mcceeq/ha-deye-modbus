@@ -70,6 +70,13 @@ class DeyeDefinitionSelect(CoordinatorEntity, SelectEntity):
     def current_option(self) -> str | None:
         return self.coordinator.data.get(self.entity_description.key)
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        return {
+            "value": self.current_option,
+            "device_class": "enum",
+        }
+
     async def async_select_option(self, option: str) -> None:
         raise NotImplementedError("Writes not implemented for select entities")
 

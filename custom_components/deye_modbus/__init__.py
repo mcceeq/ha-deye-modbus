@@ -548,6 +548,23 @@ def _decode_item(item, regs: list[int]) -> Any:
                 val = val
             else:
                 val = decoded
+        elif getattr(item, "key", "") == "meter":
+            masked = val
+            if hasattr(item, "mask") and item.mask:
+                masked = val & item.mask
+            mapped = item.lookup.get(masked)
+            if mapped is None:
+                mapped = item.lookup.get(val)
+            if mapped is None:
+                _LOGGER.debug(
+                    "meter lookup miss: raw=%s (masked=%s) registers=%s",
+                    val,
+                    masked,
+                    item.registers,
+                )
+                val = val
+            else:
+                val = mapped
         else:
             val = item.lookup.get(val, val)
 
