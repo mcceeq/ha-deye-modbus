@@ -307,34 +307,48 @@ class DeyeModbusClient:
         if not self._client:
             raise ConnectionError("Modbus client not initialized")
 
-        func = getattr(self._client, "write_register", None)
-        if not func:
-            raise AttributeError("Modbus client does not support write_register")
+        # Prefer single-register write; fall back to multiple-register write for compatibility
+        func_single = getattr(self._client, "write_register", None)
+        func_multi = getattr(self._client, "write_registers", None)
+        last_err: Exception | None = None
 
-        sig = inspect.signature(func)
-        params = sig.parameters
-        kwargs: dict[str, Any] = {}
+        for func in (func_single, func_multi):
+            if not func:
+                continue
 
-        # Unit/device id parameter name
-        if "device_id" in params:
-            kwargs["device_id"] = self._slave_id
-        elif "unit" in params:
-            kwargs["unit"] = self._slave_id
-        elif "slave" in params:
-            kwargs["slave"] = self._slave_id
+            sig = inspect.signature(func)
+            params = sig.parameters
+            kwargs: dict[str, Any] = {}
 
-        try:
-            resp = await func(address, value, **kwargs)
-            if hasattr(resp, "isError") and resp.isError():
-                raise ConnectionError(f"Modbus write failed: {resp}")
-            return resp
-        except TypeError as err:
-            _LOGGER.error(
-                "write_register call failed (address=%s, value=%s, kwargs=%s, signature=%s): %s",
-                address,
-                value,
-                kwargs,
-                sig,
-                err,
-            )
-            raise
+            # Unit/device id parameter name
+            if "device_id" in params:
+                kwargs["device_id"] = self._slave_id
+            elif "unit" in params:
+                kwargs["unit"] = self._slave_id
+            elif "slave" in params:
+                kwargs["slave"] = self._slave_id
+
+            try:
+                if func is func_multi:
+                    resp = await func(address, [value], **kwargs)
+                else:
+                    resp = await func(address, value, **kwargs)
+                if hasattr(resp, "isError") and resp.isError():
+                    raise ConnectionError(f"Modbus write failed: {resp}")
+                return resp
+            except Exception as err:  # noqa: BLE001
+                last_err = err
+                _LOGGER.warning(
+                    "write_register(s) call failed (address=%s, value=%s, func=%s, kwargs=%s, signature=%s): %s",
+                    address,
+                    value,
+                    getattr(func, "__name__", func),
+                    kwargs,
+                    sig,
+                    err,
+                )
+                continue
+
+        if last_err:
+            raise last_err
+        raise AttributeError("Modbus client does not support write_register or write_registers")
