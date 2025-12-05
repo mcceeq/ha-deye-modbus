@@ -417,6 +417,17 @@ def _decode_item(item, regs: list[int]) -> Any:
 
     if rule in (None, 1):
         val = regs[0]
+    elif rule == 2:
+        # Signed 16-bit with optional scale list
+        raw = regs[0]
+        if raw & 0x8000:
+            raw = raw - 0x10000
+        scale = None
+        if isinstance(item.scale, list) and item.scale:
+            scale = item.scale[0]
+        elif item.scale is not None:
+            scale = item.scale
+        val = raw if scale is None else raw * scale
     elif rule == 4 and len(regs) >= 2:
         val = (regs[0] << 16) | regs[1]
     elif rule in (5, 7):
