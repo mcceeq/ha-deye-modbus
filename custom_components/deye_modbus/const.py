@@ -41,3 +41,38 @@ FAST_POLL_SPANS: list[tuple[int, int]] = [
     (182, 8),   # battery temp/voltage/SOC/PV power
     (190, 5),   # battery power/current, frequencies
 ]
+
+# Battery control mode-specific visibility (keys to exclude per mode)
+# Mode values come from the definition lookup for "battery_control_mode"
+BATTERY_MODE_EXCLUDES: dict[int, set[str]] = {
+    0: {
+        # Hide SOC-based controls when using lead-acid
+        "battery_shutdown_soc",
+        "battery_restart_soc",
+        "battery_low_soc",
+        "program_1_soc",
+        "program_2_soc",
+        "program_3_soc",
+        "program_4_soc",
+        "program_5_soc",
+        "program_6_soc",
+    },
+    1: {
+        "battery_equalization",
+        "battery_absorption",
+        "battery_float",
+        "battery_equalization_cycle",
+        "battery_equalization_time",
+        "battery_temperature_compensation",
+        "program_1_voltage",
+        "program_2_voltage",
+        "program_3_voltage",
+        "program_4_voltage",
+        "program_5_voltage",
+        "program_6_voltage",
+        "battery_shutdown_voltage",
+        "battery_restart_voltage",
+        "battery_low_voltage",
+        "battery_empty",
+    },  # Lithium: hide lead-acid tuning
+}

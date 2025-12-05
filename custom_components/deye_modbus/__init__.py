@@ -34,6 +34,7 @@ from .const import (
     FAST_POLL_SPANS,
     SLOW_POLL_INTERVAL,
     DEFAULT_INVERTER_DEFINITION,
+    BATTERY_MODE_EXCLUDES,
 )
 from .modbus_client import DeyeModbusClient
 from .definition_loader import load_definition
@@ -583,16 +584,7 @@ def _filter_items_by_mode(items, battery_mode: int | None):
     """Filter definition items based on battery control mode."""
     if battery_mode is None:
         return items
-
-    # Lithium mode hides lead-acid specific tuning items
-    lead_only_keys = {
-        "battery_equalization",
-        "battery_absorption",
-        "battery_float",
-        "battery_equalization_cycle",
-        "battery_equalization_time",
-        "battery_temperature_compensation",
-    }
-    if battery_mode == 1:  # Lithium
-        return [item for item in items if item.key not in lead_only_keys]
-    return items
+    excludes = BATTERY_MODE_EXCLUDES.get(battery_mode, set())
+    if not excludes:
+        return items
+    return [item for item in items if item.key not in excludes]

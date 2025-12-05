@@ -62,6 +62,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Collect RTU/serial connection details."""
         errors: dict[str, str] = {}
         battery_mode_opts = _battery_mode_options()
+        battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
 
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_DEVICE])
@@ -77,7 +78,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_STOPBITS: user_input[CONF_STOPBITS],
                     CONF_SLAVE_ID: user_input[CONF_SLAVE_ID],
                     CONF_INVERTER_DEFINITION: user_input[CONF_INVERTER_DEFINITION],
-                    CONF_BATTERY_CONTROL_MODE: user_input.get(CONF_BATTERY_CONTROL_MODE),
+                    CONF_BATTERY_CONTROL_MODE: battery_mode_opts.get(user_input.get(CONF_BATTERY_CONTROL_MODE)) if battery_mode_opts else user_input.get(CONF_BATTERY_CONTROL_MODE),
                 },
             )
 
@@ -89,7 +90,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_STOPBITS, default=DEFAULT_STOPBITS): vol.In([1, 2]),
                 vol.Required(CONF_SLAVE_ID, default=DEFAULT_SLAVE_ID): int,
                 vol.Required(CONF_INVERTER_DEFINITION, default=DEFAULT_INVERTER_DEFINITION): vol.In([DEFAULT_INVERTER_DEFINITION]),
-                vol.Optional(CONF_BATTERY_CONTROL_MODE): vol.In(battery_mode_opts) if battery_mode_opts else int,
+                vol.Optional(CONF_BATTERY_CONTROL_MODE): vol.In(battery_mode_labels) if battery_mode_labels else int,
             }
         )
 
@@ -103,6 +104,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Collect TCP connection details."""
         errors: dict[str, str] = {}
         battery_mode_opts = _battery_mode_options()
+        battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
 
         if user_input is not None:
             await self.async_set_unique_id(f"{user_input[CONF_HOST]}:{user_input[CONF_PORT]}")
@@ -116,7 +118,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_PORT: user_input[CONF_PORT],
                     CONF_SLAVE_ID: user_input[CONF_SLAVE_ID],
                     CONF_INVERTER_DEFINITION: user_input[CONF_INVERTER_DEFINITION],
-                    CONF_BATTERY_CONTROL_MODE: user_input.get(CONF_BATTERY_CONTROL_MODE),
+                    CONF_BATTERY_CONTROL_MODE: battery_mode_opts.get(user_input.get(CONF_BATTERY_CONTROL_MODE)) if battery_mode_opts else user_input.get(CONF_BATTERY_CONTROL_MODE),
                 },
             )
 
@@ -126,7 +128,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
                 vol.Required(CONF_SLAVE_ID, default=DEFAULT_SLAVE_ID): int,
                 vol.Required(CONF_INVERTER_DEFINITION, default=DEFAULT_INVERTER_DEFINITION): vol.In([DEFAULT_INVERTER_DEFINITION]),
-                vol.Optional(CONF_BATTERY_CONTROL_MODE): vol.In(battery_mode_opts) if battery_mode_opts else int,
+                vol.Optional(CONF_BATTERY_CONTROL_MODE): vol.In(battery_mode_labels) if battery_mode_labels else int,
             }
         )
 
@@ -177,6 +179,7 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
         data = DeyeModbusConfigFlow._current(self.entry)
         errors: dict[str, str] = {}
         battery_mode_opts = _battery_mode_options()
+        battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
         if user_input:
             return self.async_create_entry(title="", data=user_input)
 
@@ -190,7 +193,7 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(CONF_SCAN_INTERVAL, default=int(data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds()))): int,
                 vol.Required(CONF_CONNECTION_TYPE, default=CONNECTION_TYPE_RTU): vol.In([CONNECTION_TYPE_RTU]),
                 vol.Required(CONF_INVERTER_DEFINITION, default=data.get(CONF_INVERTER_DEFINITION, DEFAULT_INVERTER_DEFINITION)): vol.In([DEFAULT_INVERTER_DEFINITION]),
-                vol.Optional(CONF_BATTERY_CONTROL_MODE, default=data.get(CONF_BATTERY_CONTROL_MODE)): vol.In(battery_mode_opts) if battery_mode_opts else int,
+                vol.Optional(CONF_BATTERY_CONTROL_MODE, default=_display_label_for_mode(data.get(CONF_BATTERY_CONTROL_MODE), battery_mode_opts)): vol.In(battery_mode_labels) if battery_mode_labels else int,
             }
         )
         return self.async_show_form(step_id="rtu", data_schema=schema, errors=errors)
@@ -199,6 +202,7 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
         data = DeyeModbusConfigFlow._current(self.entry)
         errors: dict[str, str] = {}
         battery_mode_opts = _battery_mode_options()
+        battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
         if user_input:
             return self.async_create_entry(title="", data=user_input)
 
@@ -210,20 +214,30 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(CONF_SCAN_INTERVAL, default=int(data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds()))): int,
                 vol.Required(CONF_CONNECTION_TYPE, default=CONNECTION_TYPE_TCP): vol.In([CONNECTION_TYPE_TCP]),
                 vol.Required(CONF_INVERTER_DEFINITION, default=data.get(CONF_INVERTER_DEFINITION, DEFAULT_INVERTER_DEFINITION)): vol.In([DEFAULT_INVERTER_DEFINITION]),
-                vol.Optional(CONF_BATTERY_CONTROL_MODE, default=data.get(CONF_BATTERY_CONTROL_MODE)): vol.In(battery_mode_opts) if battery_mode_opts else int,
+                vol.Optional(CONF_BATTERY_CONTROL_MODE, default=_display_label_for_mode(data.get(CONF_BATTERY_CONTROL_MODE), battery_mode_opts)): vol.In(battery_mode_labels) if battery_mode_labels else int,
             }
         )
         return self.async_show_form(step_id="tcp", data_schema=schema, errors=errors)
 
 
-def _battery_mode_options() -> list[int] | None:
-    """Return available battery control mode keys from current definition."""
+def _battery_mode_options() -> dict[str, int] | None:
+    """Return available battery control mode labels->keys from current definition."""
     try:
         def_path = Path(__file__).parent / "definitions" / f"{DEFAULT_INVERTER_DEFINITION}.yaml"
         items = load_definition(def_path)
         for item in items:
             if item.key == "battery_control_mode" and item.lookup:
-                return list(item.lookup.keys())
+                return {label: key for key, label in item.lookup.items()}
     except Exception:
         return None
     return None
+
+
+def _display_label_for_mode(mode_value: int | None, options: dict[str, int] | None) -> str | int | None:
+    """Return the label string for a stored mode value, for use as default in the form."""
+    if mode_value is None or not options:
+        return mode_value
+    for label, val in options.items():
+        if val == mode_value:
+            return label
+    return mode_value
