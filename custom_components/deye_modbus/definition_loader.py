@@ -97,6 +97,8 @@ def load_definition(def_path: Path) -> list[DefinitionItem]:
                 range_min = item["range"].get("min")
                 range_max = item["range"].get("max")
             mask = item.get("mask")
+            if not mask and item.get("display", {}).get("mask") is not None:
+                mask = item["display"]["mask"]
             divide = item.get("divide")
             items.append(
                 DefinitionItem(

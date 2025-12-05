@@ -41,18 +41,10 @@ _SCALE_OVERRIDES: dict[str, float] = {
     # Register 0x00D4/0x00D5 report integer amps; exposed in HA should be *100
     "battery_bms_charge_current_limit": 100,
     "battery_bms_discharge_current_limit": 100,
-    # Rule 2 currents decoded as signed 16-bit already include implicit 0.01 scale in definitions;
-    # override to whole amps to avoid underreporting by 100x
-    "battery_current": 1,
-    "grid_l1_current": 1,
-    "grid_l2_current": 1,
-    "external_ct1_current": 1,
-    "external_ct2_current": 1,
-    "load_l1_current": 1,
-    "load_l2_current": 1,
-    "output_l1_current": 1,
-    "output_l2_current": 1,
-    "battery_bms_current": 1,
+    # Adjust load power scaling (definitions use [1,10]; override to whole watts)
+    "load_power": 1,
+    "load_l1_power": 1,
+    "load_l2_power": 1,
 }
 
 
