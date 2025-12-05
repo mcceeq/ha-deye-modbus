@@ -117,13 +117,25 @@ class DeyeDefinitionSelect(CoordinatorEntity, SelectEntity):
 
         client = self.coordinator.hass.data[DOMAIN][self._entry_id]["client"]
         try:
-            await client.async_write_register(address, value)
+            # If a mask is defined, preserve other bits by reading current value first
+            if self._definition.mask:
+                rr = await client.async_read_holding_registers(address, 1)
+                if rr.isError():
+                    raise HomeAssistantError(f"Failed to read before write: {rr}")
+                current = rr.registers[0]
+                masked = (current & ~self._definition.mask) | (value & self._definition.mask)
+                value_to_write = masked
+            else:
+                value_to_write = value
+
+            await client.async_write_register(address, value_to_write)
             _LOGGER.info(
-                "Wrote select %s (option=%s -> value=%s) to register %s",
+                "Wrote select %s (option=%s -> value=%s) to register %s (masked=%s)",
                 self.entity_description.key,
                 option,
-                value,
+                value_to_write,
                 address,
+                self._definition.mask,
             )
         except Exception as err:
             _LOGGER.error(

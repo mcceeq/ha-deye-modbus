@@ -324,7 +324,10 @@ class DeyeModbusClient:
             kwargs["slave"] = self._slave_id
 
         try:
-            return await func(address, value, **kwargs)
+            resp = await func(address, value, **kwargs)
+            if hasattr(resp, "isError") and resp.isError():
+                raise ConnectionError(f"Modbus write failed: {resp}")
+            return resp
         except TypeError as err:
             _LOGGER.error(
                 "write_register call failed (address=%s, value=%s, kwargs=%s, signature=%s): %s",
