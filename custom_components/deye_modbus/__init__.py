@@ -29,6 +29,7 @@ from .const import (
     DEFINITION_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
+    FAST_POLL_SPANS,
     SLOW_POLL_INTERVAL,
 )
 from .modbus_client import DeyeModbusClient
@@ -96,15 +97,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Load YAML in executor to avoid blocking the event loop
         def_items = await hass.async_add_executor_job(load_definition, definition_path)
         spans = _build_spans(def_items)
-        # Identify fast-refresh items (power/current-related) and build spans
-        fast_items = [
-            item
-            for item in def_items
-            if (item.unit or "").lower() in ("a", "w")
-            or "power" in item.key
-            or "current" in item.key
-        ]
-        fast_spans = _build_spans(fast_items) or spans
+        # Use predefined fast spans for realtime metrics
+        fast_spans = FAST_POLL_SPANS or spans
         hass.data[DOMAIN][entry.entry_id]["meta"] = {
             "last_success": None,
             "last_error": None,

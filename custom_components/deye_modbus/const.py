@@ -29,3 +29,12 @@ DEFAULT_SLAVE_ID = 1
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=2)
 DEFINITION_SCAN_INTERVAL = timedelta(seconds=1)
 SLOW_POLL_INTERVAL = timedelta(seconds=5)
+
+# High-frequency poll spans (address, count) for realtime values
+FAST_POLL_SPANS: list[tuple[int, int]] = [
+    (150, 9),   # voltages
+    (160, 25),  # currents/power around 0x00A0-0x00B8
+    (173, 8),   # output/load power
+    (182, 8),   # battery temp/voltage/SOC/PV power
+    (190, 5),   # battery power/current, frequencies
+]
