@@ -50,6 +50,8 @@ BATTERY_MODE_EXCLUDES: dict[int, set[str]] = {
         "battery_shutdown_soc",
         "battery_restart_soc",
         "battery_low_soc",
+        "battery_grid_charging_start",
+        "battery_generator_charging_start",
         "program_1_soc",
         "program_2_soc",
         "program_3_soc",
@@ -74,5 +76,7 @@ BATTERY_MODE_EXCLUDES: dict[int, set[str]] = {
         "battery_restart_voltage",
         "battery_low_voltage",
         "battery_empty",
+        "battery_grid_charging_start_voltage",
+        "battery_generator_charging_start_voltage",
     },  # Lithium: hide lead-acid tuning
 }
