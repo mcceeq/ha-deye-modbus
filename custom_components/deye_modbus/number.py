@@ -1,8 +1,9 @@
-"""Number entities driven by definitions (read-only)."""
+"""Number entities driven by definitions (writes allowed for a limited set)."""
 
 from __future__ import annotations
 
 from typing import Any
+import logging
 
 from homeassistant.components.number import (
     NumberEntity,
@@ -12,12 +13,51 @@ from homeassistant.components.number import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfElectricCurrent, UnitOfPower, UnitOfEnergy
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, CONF_HOST, CONF_PORT, CONF_DEVICE
 from .definition_loader import DefinitionItem
+
+_LOGGER = logging.getLogger(__name__)
+
+# Keys allowed to perform writes (ToU program controls)
+_WRITABLE_NUMBER_KEYS = {
+    # Program power
+    "program_1_power",
+    "program_2_power",
+    "program_3_power",
+    "program_4_power",
+    "program_5_power",
+    "program_6_power",
+    # Program voltages
+    "program_1_voltage",
+    "program_2_voltage",
+    "program_3_voltage",
+    "program_4_voltage",
+    "program_5_voltage",
+    "program_6_voltage",
+    # Program SOCs
+    "program_1_soc",
+    "program_2_soc",
+    "program_3_soc",
+    "program_4_soc",
+    "program_5_soc",
+    "program_6_soc",
+    # Battery current limits
+    "battery_max_charging_current",
+    "battery_max_discharging_current",
+    "battery_generator_charging_current",
+    "battery_grid_charging_current",
+    # SOC thresholds
+    "battery_shutdown_soc",
+    "battery_restart_soc",
+    "battery_low_soc",
+    "battery_grid_charging_start",
+    "battery_generator_charging_start",
+}
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -46,6 +86,7 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 description=desc,
                 entry_id=entry.entry_id,
+                definition=item,
                 device_info=_device_for_group(item, entry.entry_id, base_device_info),
             )
         )
@@ -66,19 +107,71 @@ class DeyeDefinitionNumber(CoordinatorEntity, NumberEntity):
         coordinator,
         description: NumberEntityDescription,
         entry_id: str,
+        definition: DefinitionItem,
         device_info: dict[str, Any],
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry_id}_def_{description.key}"
         self._attr_device_info = device_info
+        self._entry_id = entry_id
+        self._definition = definition
 
     @property
     def native_value(self):
         return self.coordinator.data.get(self.entity_description.key)
 
     async def async_set_native_value(self, value):
-        raise NotImplementedError("Write not implemented for numbers")
+        if self.entity_description.key not in _WRITABLE_NUMBER_KEYS:
+            raise HomeAssistantError("Writes not implemented for this entity")
+
+        raw = self._to_raw(value)
+        registers = self._definition.registers
+        if not registers:
+            raise HomeAssistantError("No register defined for this number")
+        address = registers[0]
+
+        client = self.coordinator.hass.data[DOMAIN][self._entry_id]["client"]
+        try:
+            await client.async_write_register(address, raw)
+            _LOGGER.info(
+                "Wrote number %s (value=%s -> raw=%s) to register %s",
+                self.entity_description.key,
+                value,
+                raw,
+                address,
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to write number %s (value=%s -> raw=%s) to register %s: %s",
+                self.entity_description.key,
+                value,
+                raw,
+                address,
+                err,
+            )
+            raise HomeAssistantError(f"Failed to write: {err}") from err
+
+        await self.coordinator.async_request_refresh()
+
+    def _to_raw(self, value: Any) -> int:
+        """Convert native value to raw register value applying inverse scale."""
+        try:
+            val = float(value)
+        except Exception as err:  # noqa: BLE001
+            raise HomeAssistantError(f"Invalid number value: {value}") from err
+
+        scale = self._definition.scale
+        if isinstance(scale, (int, float)) and scale:
+            val = val / scale
+        # For list scales (e.g., [1,10]) we only used first element on decode; invert similarly
+        elif isinstance(scale, list) and scale:
+            factor = scale[0]
+            if len(scale) >= 2 and scale[1]:
+                factor = factor / scale[1]
+            val = val / factor
+
+        return int(round(val))
 
 
 def _build_base_name(entry_data: dict) -> str:

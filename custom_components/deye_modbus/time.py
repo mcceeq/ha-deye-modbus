@@ -1,19 +1,33 @@
-"""Time entities driven by external definitions (read-only)."""
+"""Time entities driven by external definitions (writes allowed for ToU program times)."""
 
 from __future__ import annotations
 
 import datetime
 from typing import Any
+import logging
 
 from homeassistant.components.time import TimeEntity, TimeEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, CONF_HOST, CONF_PORT, CONF_DEVICE
 from .definition_loader import DefinitionItem
+
+_LOGGER = logging.getLogger(__name__)
+
+# Keys allowed to perform writes (ToU program times)
+_WRITABLE_TIME_KEYS = {
+    "program_1_time",
+    "program_2_time",
+    "program_3_time",
+    "program_4_time",
+    "program_5_time",
+    "program_6_time",
+}
 
 
 async def async_setup_entry(
@@ -44,6 +58,7 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 description=desc,
                 entry_id=entry.entry_id,
+                definition=item,
                 device_info=_device_for_group(item, entry.entry_id, base_device_info),
             )
         )
@@ -63,12 +78,15 @@ class DeyeDefinitionTime(CoordinatorEntity, TimeEntity):
         coordinator,
         description: TimeEntityDescription,
         entry_id: str,
+        definition: DefinitionItem,
         device_info: dict[str, Any],
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry_id}_def_time_{description.key}"
         self._attr_device_info = device_info
+        self._entry_id = entry_id
+        self._definition = definition
 
     @property
     def native_value(self) -> datetime.time | None:
@@ -78,7 +96,48 @@ class DeyeDefinitionTime(CoordinatorEntity, TimeEntity):
         return None
 
     async def async_set_value(self, value: datetime.time) -> None:
-        raise NotImplementedError("Writes not implemented for time entities")
+        if self.entity_description.key not in _WRITABLE_TIME_KEYS:
+            raise HomeAssistantError("Writes not implemented for this entity")
+
+        registers = self._definition.registers
+        if not registers:
+            raise HomeAssistantError("No register defined for this time")
+        address = registers[0]
+
+        try:
+            raw = value.hour * 100 + value.minute
+        except Exception as err:  # noqa: BLE001
+            raise HomeAssistantError(f"Invalid time value: {value}") from err
+
+        client = self.coordinator.hass.data[DOMAIN][self._entry_id]["client"]
+        try:
+            await client.async_write_register(address, raw)
+            _LOGGER.info(
+                "Wrote time %s (value=%s -> raw=%s) to register %s",
+                self.entity_description.key,
+                value,
+                raw,
+                address,
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to write time %s (value=%s -> raw=%s) to register %s: %s",
+                self.entity_description.key,
+                value,
+                raw,
+                address,
+                err,
+            )
+            raise HomeAssistantError(f"Failed to write: {err}") from err
+
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        return {
+            "value": self.native_value,
+            "device_class": "time",
+        }
 
 
 def _build_base_name(entry_data: dict) -> str:
