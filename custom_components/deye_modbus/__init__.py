@@ -529,7 +529,18 @@ def _decode_item(item, regs: list[int]) -> Any:
             pass
 
     if item.lookup and isinstance(val, int):
-        val = item.lookup.get(val, val)
+        # Special handling for time_of_use: bit0 commonly acts as enable; other bits select the schedule
+        if getattr(item, "key", "") == "time_of_use":
+            if val == 0 and 0 in item.lookup:
+                val = item.lookup[0]
+            else:
+                base = val & ~1  # drop enable bit
+                if base in item.lookup:
+                    val = item.lookup[base]
+                else:
+                    val = item.lookup.get(val, val)
+        else:
+            val = item.lookup.get(val, val)
 
     # Normalize datetime/time
     if isinstance(val, dt.datetime):
