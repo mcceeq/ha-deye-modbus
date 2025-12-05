@@ -13,10 +13,20 @@ _ITEM_OVERRIDES: dict[str, dict[str, Any]] = {
     # Solarman exposes Meter (0x0146) as a select with three modes
     "meter": {
         "platform": "select",
+        "mask": 0x0003,
         "lookup": [
             {"key": 0x0000, "value": "Disabled"},
             {"key": 0x0001, "value": "Enabled"},
             {"key": 0x0002, "value": "Generator"},
+        ],
+    },
+    # Time of Use often appears as a simple enable/disable on hybrids
+    "time_of_use": {
+        "platform": "select",
+        "mask": 0x0001,
+        "lookup": [
+            {"key": 0x0000, "value": "Disabled"},
+            {"key": 0x0001, "value": "Enabled"},
         ],
     },
 }
