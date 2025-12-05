@@ -45,8 +45,14 @@ _SCALE_OVERRIDES: dict[str, float] = {
     "load_power": 10,
     "load_l1_power": 10,
     "load_l2_power": 10,
+    # Grid power needs 10x relative to definition scale
+    "grid_power": 10,
+    "grid_l1_power": 10,
+    "grid_l2_power": 10,
     # Currents should be 100x the raw register (except grid currents, which stay at definition scale)
     "battery_current": 1,
+    "grid_l1_current": 1,
+    "grid_l2_current": 1,
     "external_ct1_current": 1,
     "external_ct2_current": 1,
     "load_l1_current": 1,
