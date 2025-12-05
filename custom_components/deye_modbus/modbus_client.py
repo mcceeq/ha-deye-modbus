@@ -301,3 +301,37 @@ class DeyeModbusClient:
                 err,
             )
             raise
+
+    async def async_write_register(self, address: int, value: int) -> Any:
+        """Write a single holding register, adapting to different pymodbus signatures."""
+        if not self._client:
+            raise ConnectionError("Modbus client not initialized")
+
+        func = getattr(self._client, "write_register", None)
+        if not func:
+            raise AttributeError("Modbus client does not support write_register")
+
+        sig = inspect.signature(func)
+        params = sig.parameters
+        kwargs: dict[str, Any] = {}
+
+        # Unit/device id parameter name
+        if "device_id" in params:
+            kwargs["device_id"] = self._slave_id
+        elif "unit" in params:
+            kwargs["unit"] = self._slave_id
+        elif "slave" in params:
+            kwargs["slave"] = self._slave_id
+
+        try:
+            return await func(address, value, **kwargs)
+        except TypeError as err:
+            _LOGGER.error(
+                "write_register call failed (address=%s, value=%s, kwargs=%s, signature=%s): %s",
+                address,
+                value,
+                kwargs,
+                sig,
+                err,
+            )
+            raise
