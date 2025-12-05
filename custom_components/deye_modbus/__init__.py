@@ -25,12 +25,15 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_STOPBITS,
     CONF_SLAVE_ID,
+    CONF_BATTERY_CONTROL_MODE,
+    CONF_INVERTER_DEFINITION,
     DEFAULT_SCAN_INTERVAL,
     DEFINITION_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
     FAST_POLL_SPANS,
     SLOW_POLL_INTERVAL,
+    DEFAULT_INVERTER_DEFINITION,
 )
 from .modbus_client import DeyeModbusClient
 from .definition_loader import load_definition
@@ -92,10 +95,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     # Definition-driven coordinator (read-only)
-    definition_path = Path(__file__).parent / "definitions" / "deye_hybrid.yaml"
+    definition_name = data.get(CONF_INVERTER_DEFINITION, DEFAULT_INVERTER_DEFINITION)
+    definition_path = Path(__file__).parent / "definitions" / f"{definition_name}.yaml"
     if definition_path.exists():
         # Load YAML in executor to avoid blocking the event loop
         def_items = await hass.async_add_executor_job(load_definition, definition_path)
+        # Filter items based on battery control mode where applicable
+        battery_mode = data.get(CONF_BATTERY_CONTROL_MODE)
+        if battery_mode is not None:
+            def_items = _filter_items_by_mode(def_items, battery_mode)
         spans = _build_spans(def_items)
         # Use predefined fast spans for realtime metrics
         fast_spans = FAST_POLL_SPANS or spans
@@ -569,3 +577,22 @@ def _decode_item(item, regs: list[int]) -> Any:
         pass
 
     return val
+
+
+def _filter_items_by_mode(items, battery_mode: int | None):
+    """Filter definition items based on battery control mode."""
+    if battery_mode is None:
+        return items
+
+    # Lithium mode hides lead-acid specific tuning items
+    lead_only_keys = {
+        "battery_equalization",
+        "battery_absorption",
+        "battery_float",
+        "battery_equalization_cycle",
+        "battery_equalization_time",
+        "battery_temperature_compensation",
+    }
+    if battery_mode == 1:  # Lithium
+        return [item for item in items if item.key not in lead_only_keys]
+    return items

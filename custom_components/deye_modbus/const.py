@@ -17,6 +17,8 @@ CONF_PARITY = "parity"
 CONF_STOPBITS = "stopbits"
 CONF_SLAVE_ID = "slave_id"
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_INVERTER_DEFINITION = "inverter_definition"
+CONF_BATTERY_CONTROL_MODE = "battery_control_mode"
 
 DEFAULT_CONNECTION_TYPE = CONNECTION_TYPE_RTU
 DEFAULT_HOST = "127.0.0.1"
@@ -29,6 +31,7 @@ DEFAULT_SLAVE_ID = 1
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=2)
 DEFINITION_SCAN_INTERVAL = timedelta(seconds=1)
 SLOW_POLL_INTERVAL = timedelta(seconds=5)
+DEFAULT_INVERTER_DEFINITION = "deye_hybrid"
 
 # High-frequency poll spans (address, count) for realtime values
 FAST_POLL_SPANS: list[tuple[int, int]] = [

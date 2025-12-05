@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import voluptuous as vol
+from pathlib import Path
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_BAUDRATE,
+    CONF_BATTERY_CONTROL_MODE,
     CONF_CONNECTION_TYPE,
     CONF_DEVICE,
     CONF_HOST,
+    CONF_INVERTER_DEFINITION,
     CONF_PARITY,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
@@ -20,6 +23,7 @@ from .const import (
     DEFAULT_CONNECTION_TYPE,
     DEFAULT_DEVICE,
     DEFAULT_HOST,
+    DEFAULT_INVERTER_DEFINITION,
     DEFAULT_PARITY,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
@@ -27,6 +31,7 @@ from .const import (
     DEFAULT_STOPBITS,
     DOMAIN,
 )
+from .definition_loader import load_definition
 
 
 class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -56,6 +61,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_rtu(self, user_input: dict | None = None) -> FlowResult:
         """Collect RTU/serial connection details."""
         errors: dict[str, str] = {}
+        battery_mode_opts = _battery_mode_options()
 
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_DEVICE])
@@ -70,6 +76,8 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_PARITY: user_input[CONF_PARITY],
                     CONF_STOPBITS: user_input[CONF_STOPBITS],
                     CONF_SLAVE_ID: user_input[CONF_SLAVE_ID],
+                    CONF_INVERTER_DEFINITION: user_input[CONF_INVERTER_DEFINITION],
+                    CONF_BATTERY_CONTROL_MODE: user_input.get(CONF_BATTERY_CONTROL_MODE),
                 },
             )
 
@@ -80,6 +88,8 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_PARITY, default=DEFAULT_PARITY): vol.In(["N", "E", "O"]),
                 vol.Required(CONF_STOPBITS, default=DEFAULT_STOPBITS): vol.In([1, 2]),
                 vol.Required(CONF_SLAVE_ID, default=DEFAULT_SLAVE_ID): int,
+                vol.Required(CONF_INVERTER_DEFINITION, default=DEFAULT_INVERTER_DEFINITION): vol.In([DEFAULT_INVERTER_DEFINITION]),
+                vol.Optional(CONF_BATTERY_CONTROL_MODE): vol.In(battery_mode_opts) if battery_mode_opts else int,
             }
         )
 
@@ -92,6 +102,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_tcp(self, user_input: dict | None = None) -> FlowResult:
         """Collect TCP connection details."""
         errors: dict[str, str] = {}
+        battery_mode_opts = _battery_mode_options()
 
         if user_input is not None:
             await self.async_set_unique_id(f"{user_input[CONF_HOST]}:{user_input[CONF_PORT]}")
@@ -104,6 +115,8 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_HOST: user_input[CONF_HOST],
                     CONF_PORT: user_input[CONF_PORT],
                     CONF_SLAVE_ID: user_input[CONF_SLAVE_ID],
+                    CONF_INVERTER_DEFINITION: user_input[CONF_INVERTER_DEFINITION],
+                    CONF_BATTERY_CONTROL_MODE: user_input.get(CONF_BATTERY_CONTROL_MODE),
                 },
             )
 
@@ -112,6 +125,8 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
                 vol.Required(CONF_SLAVE_ID, default=DEFAULT_SLAVE_ID): int,
+                vol.Required(CONF_INVERTER_DEFINITION, default=DEFAULT_INVERTER_DEFINITION): vol.In([DEFAULT_INVERTER_DEFINITION]),
+                vol.Optional(CONF_BATTERY_CONTROL_MODE): vol.In(battery_mode_opts) if battery_mode_opts else int,
             }
         )
 
@@ -161,6 +176,7 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_rtu(self, user_input=None):
         data = DeyeModbusConfigFlow._current(self.entry)
         errors: dict[str, str] = {}
+        battery_mode_opts = _battery_mode_options()
         if user_input:
             return self.async_create_entry(title="", data=user_input)
 
@@ -173,6 +189,8 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(CONF_SLAVE_ID, default=data.get(CONF_SLAVE_ID, DEFAULT_SLAVE_ID)): int,
                 vol.Required(CONF_SCAN_INTERVAL, default=int(data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds()))): int,
                 vol.Required(CONF_CONNECTION_TYPE, default=CONNECTION_TYPE_RTU): vol.In([CONNECTION_TYPE_RTU]),
+                vol.Required(CONF_INVERTER_DEFINITION, default=data.get(CONF_INVERTER_DEFINITION, DEFAULT_INVERTER_DEFINITION)): vol.In([DEFAULT_INVERTER_DEFINITION]),
+                vol.Optional(CONF_BATTERY_CONTROL_MODE, default=data.get(CONF_BATTERY_CONTROL_MODE)): vol.In(battery_mode_opts) if battery_mode_opts else int,
             }
         )
         return self.async_show_form(step_id="rtu", data_schema=schema, errors=errors)
@@ -180,6 +198,7 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_tcp(self, user_input=None):
         data = DeyeModbusConfigFlow._current(self.entry)
         errors: dict[str, str] = {}
+        battery_mode_opts = _battery_mode_options()
         if user_input:
             return self.async_create_entry(title="", data=user_input)
 
@@ -190,6 +209,21 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(CONF_SLAVE_ID, default=data.get(CONF_SLAVE_ID, DEFAULT_SLAVE_ID)): int,
                 vol.Required(CONF_SCAN_INTERVAL, default=int(data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds()))): int,
                 vol.Required(CONF_CONNECTION_TYPE, default=CONNECTION_TYPE_TCP): vol.In([CONNECTION_TYPE_TCP]),
+                vol.Required(CONF_INVERTER_DEFINITION, default=data.get(CONF_INVERTER_DEFINITION, DEFAULT_INVERTER_DEFINITION)): vol.In([DEFAULT_INVERTER_DEFINITION]),
+                vol.Optional(CONF_BATTERY_CONTROL_MODE, default=data.get(CONF_BATTERY_CONTROL_MODE)): vol.In(battery_mode_opts) if battery_mode_opts else int,
             }
         )
         return self.async_show_form(step_id="tcp", data_schema=schema, errors=errors)
+
+
+def _battery_mode_options() -> list[int] | None:
+    """Return available battery control mode keys from current definition."""
+    try:
+        def_path = Path(__file__).parent / "definitions" / f"{DEFAULT_INVERTER_DEFINITION}.yaml"
+        items = load_definition(def_path)
+        for item in items:
+            if item.key == "battery_control_mode" and item.lookup:
+                return list(item.lookup.keys())
+    except Exception:
+        return None
+    return None
