@@ -58,7 +58,11 @@ class DefinitionItem:
 
 def load_definition(def_path: Path) -> list[DefinitionItem]:
     """Load a definition file and return supported items."""
-    data = yaml.safe_load(def_path.read_text())
+    try:
+        data = yaml.safe_load(def_path.read_text())
+    except (yaml.YAMLError, OSError) as err:
+        raise ValueError(f"Failed to load definition file {def_path}: {err}") from err
+
     items: list[DefinitionItem] = []
 
     params = data.get("parameters", [])

@@ -161,6 +161,19 @@ class DeyeDefinitionNumber(CoordinatorEntity, NumberEntity):
         except Exception as err:  # noqa: BLE001
             raise HomeAssistantError(f"Invalid number value: {value}") from err
 
+        # Validate bounds before scaling
+        range_min = getattr(self._definition, "range_min", None)
+        range_max = getattr(self._definition, "range_max", None)
+
+        if range_min is not None and val < range_min:
+            raise HomeAssistantError(
+                f"Value {val} is below minimum allowed value {range_min}"
+            )
+        if range_max is not None and val > range_max:
+            raise HomeAssistantError(
+                f"Value {val} is above maximum allowed value {range_max}"
+            )
+
         scale = self._definition.scale
         if isinstance(scale, (int, float)) and scale:
             val = val / scale
@@ -171,7 +184,15 @@ class DeyeDefinitionNumber(CoordinatorEntity, NumberEntity):
                 factor = factor / scale[1]
             val = val / factor
 
-        return int(round(val))
+        raw_value = int(round(val))
+
+        # Additional safety check: ensure raw value fits in 16-bit register
+        if raw_value < 0 or raw_value > 65535:
+            raise HomeAssistantError(
+                f"Converted value {raw_value} is out of valid register range (0-65535)"
+            )
+
+        return raw_value
 
 
 def _build_base_name(entry_data: dict) -> str:

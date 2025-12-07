@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import datetime as dt
 import time as _time
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -100,7 +101,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     definition_path = Path(__file__).parent / "definitions" / f"{definition_name}.yaml"
     if definition_path.exists():
         # Load YAML in executor to avoid blocking the event loop
-        def_items = await hass.async_add_executor_job(load_definition, definition_path)
+        try:
+            def_items = await hass.async_add_executor_job(load_definition, definition_path)
+        except ValueError as err:
+            raise ConfigEntryNotReady(f"Failed to load inverter definition: {err}") from err
         # Filter items based on battery control mode where applicable
         battery_mode = data.get(CONF_BATTERY_CONTROL_MODE)
         if battery_mode is not None:
@@ -414,10 +418,10 @@ def _decode_item(item, regs: list[int]) -> Any:
             hour, minute = _decode_hour_min(regs_in[hm_idx])
             if None in (year, month, day, hour, minute):
                 continue
-                try:
-                    return dt.datetime(year, month, day, hour or 0, minute or 0)
-                except Exception:  # noqa: BLE001
-                    continue
+            try:
+                return dt.datetime(year, month, day, hour or 0, minute or 0)
+            except Exception:  # noqa: BLE001
+                continue
         # Fallback: interpret successive bytes as YH,YL,M,D,H,M
         bytes_linear: list[int] = []
         for reg in regs_in:

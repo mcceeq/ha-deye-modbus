@@ -61,7 +61,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_rtu(self, user_input: dict | None = None) -> FlowResult:
         """Collect RTU/serial connection details."""
         errors: dict[str, str] = {}
-        battery_mode_opts = _battery_mode_options()
+        battery_mode_opts = await self.hass.async_add_executor_job(_battery_mode_options_sync)
         battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
 
         if user_input is not None:
@@ -103,7 +103,7 @@ class DeyeModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_tcp(self, user_input: dict | None = None) -> FlowResult:
         """Collect TCP connection details."""
         errors: dict[str, str] = {}
-        battery_mode_opts = _battery_mode_options()
+        battery_mode_opts = await self.hass.async_add_executor_job(_battery_mode_options_sync)
         battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
 
         if user_input is not None:
@@ -178,7 +178,7 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_rtu(self, user_input=None):
         data = DeyeModbusConfigFlow._current(self.entry)
         errors: dict[str, str] = {}
-        battery_mode_opts = _battery_mode_options()
+        battery_mode_opts = await self.hass.async_add_executor_job(_battery_mode_options_sync)
         battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
         if user_input:
             return self.async_create_entry(title="", data=user_input)
@@ -201,7 +201,7 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
     async def async_step_tcp(self, user_input=None):
         data = DeyeModbusConfigFlow._current(self.entry)
         errors: dict[str, str] = {}
-        battery_mode_opts = _battery_mode_options()
+        battery_mode_opts = await self.hass.async_add_executor_job(_battery_mode_options_sync)
         battery_mode_labels = list(battery_mode_opts.keys()) if battery_mode_opts else None
         if user_input:
             return self.async_create_entry(title="", data=user_input)
@@ -220,8 +220,8 @@ class DeyeModbusOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="tcp", data_schema=schema, errors=errors)
 
 
-def _battery_mode_options() -> dict[str, int] | None:
-    """Return available battery control mode labels->keys from current definition."""
+def _battery_mode_options_sync() -> dict[str, int] | None:
+    """Return available battery control mode labels->keys from current definition (blocking I/O)."""
     try:
         def_path = Path(__file__).parent / "definitions" / f"{DEFAULT_INVERTER_DEFINITION}.yaml"
         items = load_definition(def_path)
