@@ -61,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Debt
 
+- **Eliminated code duplication across platform files** (Phase 2 - Fix 6)
+  - Created shared `device_info.py` module with device info utility functions
+  - Removed 200+ lines of duplicated code from 6 platform files
+  - Functions extracted: `build_base_device()`, `build_device_for_group()`, `build_base_name()`, `build_config_url()`
+  - Updated all platform files to use shared module: `sensor.py`, `number.py`, `select.py`, `switch.py`, `time.py`, `datetime.py`
+  - Improves maintainability - device info logic now in single location
 - Removed dead code from datetime decoding logic
 - Improved type safety with explicit imports
 

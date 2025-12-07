@@ -26,8 +26,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from .const import DOMAIN, CONF_HOST, CONF_PORT, CONF_DEVICE
+from .const import DOMAIN
 from .definition_loader import DefinitionItem
+from .device_info import build_base_device, build_device_for_group
 
 _NUMERIC_DEVICE_CLASSES = {
     SensorDeviceClass.POWER,
@@ -50,7 +51,7 @@ async def async_setup_entry(
     meta = hass.data[DOMAIN][entry.entry_id].get("meta", {})
     items: list[DefinitionItem] = sol["items"]
 
-    base_device_info = _base_device(entry.entry_id, entry.data)
+    base_device_info = build_base_device(entry.entry_id, entry.data)
     entities: list[CoordinatorEntity] = []
 
     # Meta sensors on the base inverter device
@@ -86,7 +87,7 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 description=desc,
                 entry_id=entry.entry_id,
-                device_info=_device_for_group(item, entry.entry_id, base_device_info),
+                device_info=build_device_for_group(item, entry.entry_id, base_device_info),
             )
         )
 
@@ -158,46 +159,6 @@ class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
                     return None
             return None
         return val
-
-
-def _build_base_name(entry_data: dict) -> str:
-    if host := entry_data.get(CONF_HOST):
-        port = entry_data.get(CONF_PORT)
-        base = f"Deye Inverter ({host}:{port})" if port else f"Deye Inverter ({host})"
-    elif device := entry_data.get(CONF_DEVICE):
-        base = f"Deye Inverter ({device})"
-    else:
-        base = "Deye Inverter"
-    return base
-
-
-def _base_device(entry_id: str, entry_data: dict) -> dict:
-    return {
-        "identifiers": {(DOMAIN, entry_id)},
-        "manufacturer": "Deye",
-        "name": _build_base_name(entry_data),
-        "configuration_url": _build_config_url(entry_data),
-    }
-
-
-def _device_for_group(item: DefinitionItem, entry_id: str, base: dict) -> dict:
-    """Create a grouped DeviceInfo if group_name is present."""
-    group = (item.group_name or "").strip()
-    if not group:
-        return base
-    return {
-        "identifiers": {(DOMAIN, f"{entry_id}_{group}")},
-        "manufacturer": base.get("manufacturer"),
-        "name": f"{base.get('name')} - {group}",
-        "via_device": (DOMAIN, entry_id),
-        "configuration_url": base.get("configuration_url"),
-    }
-
-
-def _build_config_url(entry_data: dict) -> str | None:
-    if host := entry_data.get(CONF_HOST):
-        return f"http://{host}"
-    return None
 
 
 def _description_for(item: DefinitionItem) -> SensorEntityDescription | None:

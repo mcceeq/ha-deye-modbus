@@ -11,8 +11,9 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, CONF_HOST, CONF_PORT, CONF_DEVICE
+from .const import DOMAIN
 from .definition_loader import DefinitionItem
+from .device_info import build_base_device, build_device_for_group
 
 
 async def async_setup_entry(
@@ -26,7 +27,7 @@ async def async_setup_entry(
     coordinator = defs["coordinator"]
     items: list[DefinitionItem] = defs["items"]
 
-    base_device_info = _base_device(entry.entry_id, entry.data)
+    base_device_info = build_base_device(entry.entry_id, entry.data)
 
     entities: list[DeyeDefinitionSwitch] = []
     for item in items:
@@ -43,7 +44,7 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 description=desc,
                 entry_id=entry.entry_id,
-                device_info=_device_for_group(item, entry.entry_id, base_device_info),
+                device_info=build_device_for_group(item, entry.entry_id, base_device_info),
             )
         )
 
@@ -86,40 +87,3 @@ class DeyeDefinitionSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         raise NotImplementedError("Writes not implemented for switch entities")
-
-
-def _build_base_name(entry_data: dict) -> str:
-    if host := entry_data.get(CONF_HOST):
-        port = entry_data.get(CONF_PORT)
-        return f"Deye Inverter ({host}:{port})" if port else f"Deye Inverter ({host})"
-    if device := entry_data.get(CONF_DEVICE):
-        return f"Deye Inverter ({device})"
-    return "Deye Inverter"
-
-
-def _build_config_url(entry_data: dict) -> str | None:
-    if host := entry_data.get(CONF_HOST):
-        return f"http://{host}"
-    return None
-
-
-def _base_device(entry_id: str, entry_data: dict) -> dict:
-    return {
-        "identifiers": {(DOMAIN, entry_id)},
-        "manufacturer": "Deye",
-        "name": _build_base_name(entry_data),
-        "configuration_url": _build_config_url(entry_data),
-    }
-
-
-def _device_for_group(item: DefinitionItem, entry_id: str, base: dict) -> dict:
-    group = (item.group_name or "").strip()
-    if not group:
-        return base
-    return {
-        "identifiers": {(DOMAIN, f"{entry_id}_{group}")},
-        "manufacturer": base.get("manufacturer"),
-        "name": f"{base.get('name')} - {group}",
-        "via_device": (DOMAIN, entry_id),
-        "configuration_url": base.get("configuration_url"),
-    }
