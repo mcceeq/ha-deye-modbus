@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
 from .const import DOMAIN
 from .definition_loader import DefinitionItem
@@ -73,7 +73,7 @@ class DeyeDefinitionSelect(CoordinatorEntity, SelectEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator[dict[str, Any]],
         description: SelectEntityDescription,
         entry_id: str,
         definition: DefinitionItem,
@@ -196,7 +196,10 @@ class DeyeDefinitionSelect(CoordinatorEntity, SelectEntity):
                     verify_err,
                 )
 
-        except Exception as err:
+        except HomeAssistantError:
+            # Re-raise HomeAssistantError from validation or verification
+            raise
+        except Exception as err:  # noqa: BLE001
             _LOGGER.error(
                 "Failed to write select %s (option=%s -> value=%s) to register %s: %s",
                 self.entity_description.key,

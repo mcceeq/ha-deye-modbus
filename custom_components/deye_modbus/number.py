@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import logging
 
 from homeassistant.components.number import (
@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
 from .const import DOMAIN
 from .definition_loader import DefinitionItem
@@ -105,7 +105,7 @@ class DeyeDefinitionNumber(CoordinatorEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator[dict[str, Any]],
         description: NumberEntityDescription,
         entry_id: str,
         definition: DefinitionItem,

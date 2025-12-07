@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
 from .const import DOMAIN
 from .definition_loader import DefinitionItem
@@ -61,7 +61,7 @@ class DeyeDefinitionDateTime(CoordinatorEntity, DateTimeEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator[dict[str, Any]],
         description: DateTimeEntityDescription,
         entry_id: str,
         device_info: dict[str, Any],

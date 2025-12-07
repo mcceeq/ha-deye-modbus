@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 import re
+import logging
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -23,12 +24,14 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN
 from .definition_loader import DefinitionItem
 from .device_info import build_base_device, build_device_for_group
+
+_LOGGER = logging.getLogger(__name__)
 
 _NUMERIC_DEVICE_CLASSES = {
     SensorDeviceClass.POWER,
@@ -102,7 +105,7 @@ class DeyeMetaSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator[dict[str, Any]],
         entry_id: str,
         device_info: dict[str, Any],
         key: str,
@@ -134,7 +137,7 @@ class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator[dict[str, Any]],
         description: SensorEntityDescription,
         entry_id: str,
         device_info: dict[str, Any],
@@ -155,7 +158,13 @@ class DeyeDefinitionSensor(CoordinatorEntity, SensorEntity):
                     num = float(match.group(0))
                     # Return int when appropriate
                     return int(num) if num.is_integer() else num
-                except Exception:
+                except (ValueError, TypeError) as err:
+                    _LOGGER.debug(
+                        "Failed to parse numeric value from '%s' for %s: %s",
+                        val,
+                        self.entity_description.key,
+                        err,
+                    )
                     return None
             return None
         return val
