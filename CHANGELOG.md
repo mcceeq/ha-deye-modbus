@@ -98,6 +98,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed dead code from datetime decoding logic
 - Improved type safety with explicit imports
 
+### Documentation
+
+#### Testing & Quality Assurance (Phase 4)
+
+- **Added comprehensive unit test suite**
+  - Created `tests/` directory with pytest configuration
+  - Added `test_number.py` - Tests for number entity validation and write verification
+  - Added `test_select.py` - Tests for select entity masked writes and verification
+  - Added `conftest.py` - Shared test fixtures for coordinators and Modbus clients
+  - Tests cover: input validation, scale conversion, range checking, write verification, masked writes
+  - Includes both sync and async test patterns
+  - Ready for CI/CD integration
+
+- **Created comprehensive documentation**
+  - Added `docs/WRITE_VERIFICATION.md` - Complete guide to write verification feature
+    - Explains why verification is needed (detecting inverter rejections/modifications)
+    - Documents verification flow for number, select, and time entities
+    - Covers masked write verification for registers with multiple settings
+    - Explains error handling and logging levels
+    - Provides debugging guidance for write failures
+  - Added `docs/TROUBLESHOOTING.md` - Extensive troubleshooting guide
+    - Common issues and solutions organized by symptom
+    - Connection, configuration, and write operation debugging
+    - Log message interpretation and debugging techniques
+    - Manual Modbus testing instructions
+    - Diagnostic sensor usage guide
+    - Bug reporting guidelines
+  - Added `tests/README.md` - Testing documentation
+    - How to run tests (all, specific files, specific tests)
+    - Test coverage overview
+    - Writing new tests guide
+    - Best practices and common patterns
+    - CI/CD integration examples
+
+- **Improved developer experience**
+  - Clear test structure with descriptive names and docstrings
+  - Mock fixtures for easy test development
+  - Comprehensive code examples in documentation
+  - Ready for community contributions
+
 ---
 
 ## Previous Releases
