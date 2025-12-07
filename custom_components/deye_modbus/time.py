@@ -130,6 +130,48 @@ class DeyeDefinitionTime(CoordinatorEntity, TimeEntity):
             )
             raise HomeAssistantError(f"Failed to write: {err}") from err
 
+        # Read-after-write verification
+        try:
+            read_result = await client.async_read_holding_registers(address, 1)
+            if read_result.isError():
+                _LOGGER.warning(
+                    "Failed to verify write for %s at register %s: %s",
+                    self.entity_description.key,
+                    address,
+                    read_result,
+                )
+            else:
+                read_value = read_result.registers[0]
+                if read_value != raw:
+                    _LOGGER.error(
+                        "Write verification FAILED for %s: wrote %s (%s) but read back %s (register %s)",
+                        self.entity_description.key,
+                        raw,
+                        value,
+                        read_value,
+                        address,
+                    )
+                    raise HomeAssistantError(
+                        f"Write verification failed: wrote {raw} ({value}) but read back {read_value}"
+                    )
+                else:
+                    _LOGGER.debug(
+                        "Write verification OK for %s: time %s confirmed at register %s",
+                        self.entity_description.key,
+                        value,
+                        address,
+                    )
+        except HomeAssistantError:
+            # Re-raise verification failures
+            raise
+        except Exception as verify_err:  # noqa: BLE001
+            # Log verification errors but don't fail the write
+            _LOGGER.warning(
+                "Exception during write verification for %s: %s",
+                self.entity_description.key,
+                verify_err,
+            )
+
         await self.coordinator.async_request_refresh()
 
     @property

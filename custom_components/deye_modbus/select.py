@@ -137,6 +137,64 @@ class DeyeDefinitionSelect(CoordinatorEntity, SelectEntity):
                 address,
                 self._definition.mask,
             )
+
+            # Read-after-write verification
+            try:
+                read_result = await client.async_read_holding_registers(address, 1)
+                if read_result.isError():
+                    _LOGGER.warning(
+                        "Failed to verify write for %s at register %s: %s",
+                        self.entity_description.key,
+                        address,
+                        read_result,
+                    )
+                else:
+                    read_value = read_result.registers[0]
+                    # For masked writes, verify the masked bits match
+                    if self._definition.mask:
+                        expected = value_to_write & self._definition.mask
+                        actual = read_value & self._definition.mask
+                        if actual != expected:
+                            _LOGGER.error(
+                                "Write verification FAILED for %s: wrote masked value %s but read back %s (register %s, mask %s)",
+                                self.entity_description.key,
+                                expected,
+                                actual,
+                                address,
+                                self._definition.mask,
+                            )
+                            raise HomeAssistantError(
+                                f"Write verification failed: wrote {expected} but read back {actual}"
+                            )
+                    else:
+                        if read_value != value_to_write:
+                            _LOGGER.error(
+                                "Write verification FAILED for %s: wrote %s but read back %s (register %s)",
+                                self.entity_description.key,
+                                value_to_write,
+                                read_value,
+                                address,
+                            )
+                            raise HomeAssistantError(
+                                f"Write verification failed: wrote {value_to_write} but read back {read_value}"
+                            )
+                    _LOGGER.debug(
+                        "Write verification OK for %s: option '%s' confirmed at register %s",
+                        self.entity_description.key,
+                        option,
+                        address,
+                    )
+            except HomeAssistantError:
+                # Re-raise verification failures
+                raise
+            except Exception as verify_err:  # noqa: BLE001
+                # Log verification errors but don't fail the write
+                _LOGGER.warning(
+                    "Exception during write verification for %s: %s",
+                    self.entity_description.key,
+                    verify_err,
+                )
+
         except Exception as err:
             _LOGGER.error(
                 "Failed to write select %s (option=%s -> value=%s) to register %s: %s",

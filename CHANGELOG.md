@@ -38,9 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents potentially dangerous out-of-bounds writes to inverter registers
   - Provides clear error messages when validation fails
 
+#### Write Verification (Addresses Random Value Changes)
+
+- **Added read-after-write verification for all writable entities**
+  - Number entities (`number.py`): Verifies written value matches expected raw value
+  - Select entities (`select.py`): Verifies written value with mask-aware checking
+  - Time entities (`time.py`): Verifies written time value in HHMM format
+  - Immediately detects if inverter rejects or modifies written values
+  - Raises `HomeAssistantError` if verification fails, alerting user to issues
+  - Helps diagnose random value changes (e.g., ToU SOC jumping between 100 and 15)
+  - Debug logging confirms successful writes with "Write verification OK" messages
+
 ### Security
 
 - **Input validation:** Number entities now validate all writes against defined ranges and register limits to prevent out-of-range values from being sent to the inverter
+- **Write verification:** All register writes are now verified by reading back the value, preventing silent write failures
 
 ### Changed
 
