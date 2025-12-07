@@ -2499,3 +2499,447 @@ parameters:
             value: "Vacancy"
           - bit: 1
             value: "OCP"
+
+  # ========================================
+  # DIAGNOSTIC SENSORS (Phase 1 - High Priority)
+  # ========================================
+  - group: Diagnostics
+    items:
+      - name: "Battery Status"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        rule: 1
+        registers: [0x00B9]
+        icon: "mdi:battery-heart"
+        lookup:
+          - key: 0
+            value: "Standby"
+          - key: 1
+            value: "Charging"
+          - key: 2
+            value: "Discharging"
+
+      - name: "Grid Side Relay Status"
+        platform: binary_sensor
+        entity_category: diagnostic
+        class: "connectivity"
+        update_interval: 5
+        rule: 1
+        registers: [0x00C2]
+        icon: "mdi:connection"
+        lookup:
+          - key: 0
+            value: "OFF"
+          - key: 1
+            value: "ON"
+
+      - name: "Generator Relay Status"
+        platform: binary_sensor
+        entity_category: diagnostic
+        class: "connectivity"
+        update_interval: 5
+        rule: 1
+        registers: [0x00C3]
+        icon: "mdi:connection"
+        lookup:
+          - key: 0
+            value: "OFF"
+          - key: 1
+            value: "ON"
+
+      - name: "Load Frequency"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "Hz"
+        rule: 1
+        scale: 0.01
+        registers: [0x00C4]
+        icon: "mdi:sine-wave"
+        range:
+          min: 0
+          max: 70
+
+      - name: "Inverter Output Frequency"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "Hz"
+        rule: 1
+        scale: 0.01
+        registers: [0x00C5]
+        icon: "mdi:sine-wave"
+        range:
+          min: 0
+          max: 70
+
+      # ========================================
+      # DIAGNOSTIC SENSORS (Phase 2 - Medium Priority)
+      # ========================================
+
+      - name: "RCD Leakage Current"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "mA"
+        rule: 1
+        scale: 1
+        registers: [0x005E]
+        icon: "mdi:current-ac"
+        range:
+          min: 0
+          max: 1000
+
+      - name: "Output Apparent Power L1"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "VA"
+        rule: 3
+        scale: 1
+        registers: [0x0050, 0x0051]
+        icon: "mdi:lightning-bolt"
+        range:
+          min: 0
+          max: 100000
+
+      - name: "Output Active Power L1"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "W"
+        rule: 3
+        scale: 1
+        registers: [0x0052, 0x0053]
+        icon: "mdi:flash"
+        range:
+          min: -50000
+          max: 50000
+
+      - name: "Output Reactive Power L1"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "var"
+        rule: 3
+        scale: 1
+        registers: [0x0054, 0x0055]
+        icon: "mdi:sine-wave"
+        range:
+          min: -50000
+          max: 50000
+
+      - name: "Load Current L1"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "A"
+        rule: 1
+        scale: 0.01
+        registers: [0x00C6]
+        icon: "mdi:current-ac"
+        range:
+          min: 0
+          max: 100
+
+      - name: "Load Current L2"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "A"
+        rule: 1
+        scale: 0.01
+        registers: [0x00C7]
+        icon: "mdi:current-ac"
+        range:
+          min: 0
+          max: 100
+
+      - name: "Load Active Power L1"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "W"
+        rule: 6
+        scale: 1
+        registers: [0x00C8]
+        icon: "mdi:flash"
+        range:
+          min: -50000
+          max: 50000
+
+      - name: "Load Active Power L2"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "W"
+        rule: 6
+        scale: 1
+        registers: [0x00C9]
+        icon: "mdi:flash"
+        range:
+          min: -50000
+          max: 50000
+
+      - name: "AC Couple Current"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "A"
+        rule: 1
+        scale: 0.01
+        registers: [0x00CA]
+        icon: "mdi:current-ac"
+        range:
+          min: 0
+          max: 100
+
+      - name: "AC Couple Power"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "W"
+        rule: 6
+        scale: 1
+        registers: [0x00CB]
+        icon: "mdi:solar-power"
+        range:
+          min: 0
+          max: 50000
+
+      - name: "Generator Current"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "A"
+        rule: 1
+        scale: 0.01
+        registers: [0x00CC]
+        icon: "mdi:current-ac"
+        range:
+          min: 0
+          max: 100
+
+      - name: "Generator Power"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        unit: "W"
+        rule: 6
+        scale: 1
+        registers: [0x00CD]
+        icon: "mdi:engine"
+        range:
+          min: 0
+          max: 50000
+
+      # ========================================
+      # DIAGNOSTIC SENSORS (Phase 3 - Advanced Controls & Status)
+      # ========================================
+
+      - name: "Max Grid Voltage"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "V"
+        rule: 1
+        scale: 0.1
+        registers: [0x001C]
+        icon: "mdi:flash-alert"
+        range:
+          min: 0
+          max: 300
+
+      - name: "Min Grid Voltage"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "V"
+        rule: 1
+        scale: 0.1
+        registers: [0x001D]
+        icon: "mdi:flash-alert"
+        range:
+          min: 0
+          max: 300
+
+      - name: "Max Grid Frequency"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "Hz"
+        rule: 1
+        scale: 0.01
+        registers: [0x001E]
+        icon: "mdi:sine-wave"
+        range:
+          min: 0
+          max: 70
+
+      - name: "Min Grid Frequency"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "Hz"
+        rule: 1
+        scale: 0.01
+        registers: [0x001F]
+        icon: "mdi:sine-wave"
+        range:
+          min: 0
+          max: 70
+
+      - name: "Reactive Power Adjustment"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "var"
+        rule: 6
+        scale: 1
+        registers: [0x0029]
+        icon: "mdi:sine-wave"
+        range:
+          min: -10000
+          max: 10000
+
+      - name: "Active Power Adjustment"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "W"
+        rule: 6
+        scale: 1
+        registers: [0x002A]
+        icon: "mdi:flash"
+        range:
+          min: -10000
+          max: 10000
+
+      - name: "Power Factor Adjustment"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        rule: 1
+        scale: 0.001
+        registers: [0x0028]
+        icon: "mdi:chart-bell-curve"
+        range:
+          min: -1
+          max: 1
+
+      - name: "CT Ratio"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        rule: 1
+        scale: 1
+        registers: [0x0033]
+        icon: "mdi:scale-balance"
+        range:
+          min: 1
+          max: 1000
+
+      - name: "Grid Peak Shaving Power"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "W"
+        rule: 1
+        scale: 10
+        registers: [0x0019]
+        icon: "mdi:transmission-tower"
+        range:
+          min: 0
+          max: 20000
+
+      - name: "Inverter Work Mode"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 5
+        rule: 1
+        registers: [0x0062]
+        icon: "mdi:state-machine"
+        lookup:
+          - key: 0
+            value: "Standby"
+          - key: 1
+            value: "Self Check"
+          - key: 2
+            value: "Normal (On-Grid)"
+          - key: 3
+            value: "Emergency (Alarm)"
+          - key: 4
+            value: "Fault"
+          - key: 5
+            value: "Constant Power"
+
+      - name: "Total Daily Energy Buy"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "kWh"
+        class: "energy"
+        rule: 1
+        scale: 0.1
+        registers: [0x0064]
+        icon: "mdi:transmission-tower-import"
+        range:
+          min: 0
+          max: 1000
+
+      - name: "BMS Connect State"
+        platform: binary_sensor
+        entity_category: diagnostic
+        class: "connectivity"
+        update_interval: 5
+        rule: 1
+        registers: [0x006B]
+        icon: "mdi:battery-sync"
+        lookup:
+          - key: 0
+            value: "OFF"
+          - key: 1
+            value: "ON"
+
+      - name: "Total Energy Sell"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "kWh"
+        class: "energy"
+        rule: 3
+        scale: 0.1
+        registers: [0x0075, 0x0076]
+        icon: "mdi:transmission-tower-export"
+        range:
+          min: 0
+          max: 1000000
+
+      - name: "Total Energy Buy"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "kWh"
+        class: "energy"
+        rule: 3
+        scale: 0.1
+        registers: [0x0077, 0x0078]
+        icon: "mdi:transmission-tower-import"
+        range:
+          min: 0
+          max: 1000000
+
+      - name: "Total Energy Load"
+        platform: sensor
+        entity_category: diagnostic
+        update_interval: 30
+        unit: "kWh"
+        class: "energy"
+        rule: 3
+        scale: 0.1
+        registers: [0x0079, 0x007A]
+        icon: "mdi:home-lightning-bolt"
+        range:
+          min: 0
+          max: 1000000

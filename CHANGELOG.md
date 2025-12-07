@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Added 32 new diagnostic sensors** for comprehensive inverter monitoring
+  - **Phase 1 (High Priority)**: Battery Status, Grid/Generator Relay Status, Load/Inverter Output Frequencies
+  - **Phase 2 (Medium Priority)**: RCD Leakage Current, Output Power metrics (Apparent/Active/Reactive), Load Currents L1/L2, AC Couple metrics, Generator metrics
+  - **Phase 3 (Advanced)**: Grid voltage/frequency limits, Power Factor/Active/Reactive Power adjustments, CT Ratio, Grid Peak Shaving Power, Inverter Work Mode, Total Energy metrics (Buy/Sell/Load), BMS Connect State
+  - All sensors marked as `entity_category: diagnostic` for easier organization
+  - Enables advanced monitoring and troubleshooting capabilities
+  - Based on comprehensive review of Modbus protocol V118 documentation
+
 ### Fixed
 
 #### Critical Bug Fixes (Phase 1)
